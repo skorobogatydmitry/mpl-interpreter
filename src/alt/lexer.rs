@@ -13,13 +13,13 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Token {
+    fn next_token(&mut self) -> Option<Token> {
         // skip whitespaces
         while self.peek_char().is_ascii_whitespace() {
             self.read_char();
         }
 
-        match self.read_char() {
+        Some(match self.read_char() {
             '=' => {
                 if self.peek_char() == &'=' {
                     self.read_char(); // skip the 2nd '='
@@ -48,7 +48,7 @@ impl<'a> Lexer<'a> {
             '*' => Token::Asterisk,
             '<' => Token::Lt,
             '>' => Token::Gt,
-            '\0' => Token::EOF,
+            '\0' => return None,
             ch => {
                 if Self::is_valid_id_char(&ch) {
                     Token::from_identifier(self.read_identifier(ch))
@@ -58,7 +58,7 @@ impl<'a> Lexer<'a> {
                     Token::Illegal("".to_string())
                 }
             }
-        }
+        })
     }
 
     /// collect all consecutive numbers to a new String
@@ -95,6 +95,13 @@ impl<'a> Lexer<'a> {
 
     fn peek_char(&mut self) -> &'_ char {
         self.input.peek().unwrap_or(&'\0')
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
     }
 }
 
@@ -200,17 +207,17 @@ mod test {
             Token::NotEq,
             Token::Int("9".to_string()),
             Token::Semicolon,
-            Token::EOF,
         ];
 
-        let mut lexer = Lexer::new(sample_input);
+        let lexer = Lexer::new(sample_input);
 
-        for (idx, token) in expected.into_iter().enumerate() {
-            let rx_token = lexer.next_token();
+        for (token, (idx, expected_token)) in
+            lexer.into_iter().zip(expected.into_iter().enumerate())
+        {
             assert_eq!(
-                token, rx_token,
+                expected_token, token,
                 "incorrect token at {}: {:?} VS {:?}",
-                idx, token, rx_token
+                idx, expected_token, token
             );
         }
     }

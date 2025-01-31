@@ -3,7 +3,6 @@ use std::fmt::Display;
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum Token {
     Illegal(String),
-    EOF,
 
     Identifier(String),
     Int(String),

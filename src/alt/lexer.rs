@@ -211,9 +211,7 @@ mod test {
 
         let lexer = Lexer::new(sample_input);
 
-        for (token, (idx, expected_token)) in
-            lexer.into_iter().zip(expected.into_iter().enumerate())
-        {
+        for (token, (idx, expected_token)) in lexer.zip(expected.into_iter().enumerate()) {
             assert_eq!(
                 expected_token, token,
                 "incorrect token at {}: {:?} VS {:?}",

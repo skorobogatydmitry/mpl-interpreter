@@ -138,6 +138,15 @@ fn test_indentifier_expression() {
 }
 
 #[test]
+fn test_empty_expression_statement() {
+    let input = "5;;";
+    let mut program = make_program_from(input, Some(2));
+    if let Some(Statement::Expression(ExpressionStatement { expression: None })) =
+        program.statements.pop()
+    {}
+}
+
+#[test]
 fn test_literal_expression() {
     let inputs = vec!["5", "5;"];
 

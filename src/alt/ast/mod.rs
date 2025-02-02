@@ -19,6 +19,7 @@ pub enum Expression {
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),
+    Empty, // just a `;', is needed e.g. for return ;
 }
 
 #[derive(Debug, PartialEq)]

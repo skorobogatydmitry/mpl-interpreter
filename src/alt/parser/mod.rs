@@ -51,11 +51,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // fn next_token(&mut self) {
-    //     self.cur_token = self.peek_token.clone();
-    //     self.peek_token = self.lexer.next_token();
-    // }
-
     pub fn parse_program(&mut self) -> Option<Program> {
         let mut program = Program { statements: vec![] };
 
@@ -91,9 +86,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Result<Statement, String> {
-        let ret_expr = self.parse_expression(PrecedenceLevel::Lowest);
+        let ret_expr = self.parse_expression(PrecedenceLevel::Lowest)?;
         self.skip_semicolon();
-        Ok(Statement::Return(Return { ret_expr }))
+        Ok(Statement::Return(Return {
+            ret_expr: Some(ret_expr),
+        }))
     }
 
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
@@ -116,9 +113,14 @@ impl<'a> Parser<'a> {
             .ok_or(format!("no tokens after `let {name}', expected `='"))
             .and_then(|token| {
                 if let Token::Assign = token {
-                    let value = self.parse_expression(PrecedenceLevel::Lowest);
+                    let value = self
+                        .parse_expression(PrecedenceLevel::Lowest)
+                        .map_err(|e| format!("error parsing let statement: {e}"))?;
                     self.skip_semicolon();
-                    Ok(Statement::Let(Let { name, value }))
+                    Ok(Statement::Let(Let {
+                        name,
+                        value: Some(value),
+                    }))
                 } else {
                     Err(format!("expected `=', got {token}"))
                 }
@@ -128,7 +130,7 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         /* the whole expression has the lowest precedence */
         self.parse_expression(PrecedenceLevel::Lowest)
-            .ok_or(format!("cannot parse expression: TODO!"))
+            .map_err(|e| format!("cannot parse expression: {e}"))
             .map(|expr| {
                 self.skip_semicolon();
                 Statement::Expression(statement::ExpressionStatement {
@@ -137,10 +139,12 @@ impl<'a> Parser<'a> {
             })
     }
 
-    fn parse_expression(&mut self, precedence: PrecedenceLevel) -> Option<Expression> {
+    fn parse_expression(&mut self, precedence: PrecedenceLevel) -> Result<Expression, String> {
         let mut left_expr = match self.lexer.next() {
-            Some(Token::Identifier(idf)) => Some(Expression::Identifier(Identifier { value: idf })),
-            Some(Token::Int(literal)) => self.parse_integer_literal(literal),
+            Some(Token::Identifier(idf)) => Ok(Expression::Identifier(Identifier { value: idf })),
+            Some(Token::Int(literal)) => self
+                .parse_integer_literal(literal)
+                .ok_or(format!("error parsing integer literal: TODO")),
             Some(operator @ Token::Bang) | Some(operator @ Token::Minus) => self
                 .parse_expression(PrecedenceLevel::Prefix)
                 .map(|operand| {
@@ -149,25 +153,25 @@ impl<'a> Parser<'a> {
                         operand: Box::new(operand),
                     })
                 }),
-            Some(Token::True) => Some(Expression::Boolean(Boolean { value: true })),
-            Some(Token::False) => Some(Expression::Boolean(Boolean { value: false })),
-            Some(Token::Lparen) => self.parse_groupped_expression(),
-            Some(Token::If) => self.parse_if_expression(),
-            Some(Token::Function) => self.parse_fn_expression(),
-            Some(etc) => {
-                self.errors
-                    .push(format!("no prefix parsing fn for token kind {etc:?}"));
-                None
-            }
-            None => {
-                self.errors.push(format!("no token to parse an expression"));
-                None
-            }
-        };
+            Some(Token::True) => Ok(Expression::Boolean(Boolean { value: true })),
+            Some(Token::False) => Ok(Expression::Boolean(Boolean { value: false })),
+            Some(Token::Lparen) => self
+                .parse_groupped_expression()
+                .map_err(|e| format!("error parsing a groupped expression: {e}")),
+            Some(Token::If) => self
+                .parse_if_expression()
+                .ok_or(format!("error parsing an if expression: TODO")),
+            Some(Token::Function) => self
+                .parse_fn_expression()
+                .ok_or(format!("error parsing a fn expression: TODO")),
+            Some(Token::Semicolon) => Ok(Expression::Empty),
+            Some(etc) => Err(format!("no prefix parsing fn for token kind {etc:?}")),
+            None => Err(format!("no token to parse an expression")),
+        }?;
 
         while let Some(token) = self.lexer.peek() {
             if precedence >= PrecedenceLevel::from_token(&token) {
-                return left_expr;
+                return Ok(left_expr);
             }
             let infix_fn = match token {
                 Token::Lparen => Self::parse_fn_call,
@@ -179,21 +183,15 @@ impl<'a> Parser<'a> {
                 | Token::NotEq
                 | Token::Lt
                 | Token::Gt => Self::parse_infix_expression,
-                _ => return left_expr,
+                _ => return Ok(left_expr),
             };
             // there's a function to apply
-
-            if let Some(left) = left_expr.take() {
-                left_expr = infix_fn(self, left);
-            } else {
-                self.errors
-                    .push(format!("no left expression for the infix expression"));
-                return None;
-            }
+            left_expr = infix_fn(self, left_expr)
+                .map_err(|e| format!("unable to parse an infix expression: {e}"))?;
         }
 
-        // reached end of program
-        left_expr
+        // reached the end of program
+        Ok(left_expr)
     }
 
     fn parse_integer_literal(&mut self, literal: String) -> Option<Expression> {
@@ -207,14 +205,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_groupped_expression(&mut self) -> Option<Expression> {
+    fn parse_groupped_expression(&mut self) -> Result<Expression, String> {
         let expression = self.parse_expression(PrecedenceLevel::Lowest);
         match self.lexer.next() {
-            Some(Token::Rparen) => expression,
-            etc => {
-                self.errors.push(format!("expected `)`, got {etc:?}"));
-                None
+            Some(Token::Rparen) => {
+                expression.map_err(|e| format!("inner expression parsing failed: {e}"))
             }
+            etc => Err(format!("expected `)`, got {etc:?}")),
         }
     }
 
@@ -225,7 +222,7 @@ impl<'a> Parser<'a> {
                     .push(format!("expected ( for if condition, got {next_token}",));
                 return None;
             }
-            if let Some(cond) = self.parse_groupped_expression() {
+            if let Ok(cond) = self.parse_groupped_expression() {
                 cond
             } else {
                 self.errors
@@ -360,16 +357,11 @@ impl<'a> Parser<'a> {
         Err(())
     }
 
-    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
-        let operator = match self.lexer.next() {
-            Some(token) => token,
-            None => {
-                self.errors.push(format!(
-                    "no token for the infix expression starts from {left:?}"
-                ));
-                return None;
-            }
-        };
+    fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        let operator = self
+            .lexer
+            .next()
+            .ok_or(format!("no token available for an operator after {left:?}"))?;
 
         let precedence = PrecedenceLevel::from_token(&operator);
         self.parse_expression(precedence).map(|right| {
@@ -381,17 +373,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_fn_call(&mut self, function: Expression) -> Option<Expression> {
-        Some(Expression::Call(Call {
+    fn parse_fn_call(&mut self, function: Expression) -> Result<Expression, String> {
+        Ok(Expression::Call(Call {
             function: Box::new(function),
-            arguments: match self.parse_fn_call_args() {
-                Ok(args) => args,
-                Err(()) => return None,
-            },
+            arguments: self.parse_fn_call_args()?,
         }))
     }
 
-    fn parse_fn_call_args(&mut self) -> Result<Vec<Expression>, ()> {
+    fn parse_fn_call_args(&mut self) -> Result<Vec<Expression>, String> {
         let mut args = vec![];
 
         while let Some(token) = self.lexer.next() {
@@ -399,38 +388,24 @@ impl<'a> Parser<'a> {
                 Token::Rparen => return Ok(args),
                 Token::Lparen => {
                     if !args.is_empty() {
-                        self.errors.push(format!(
-                            "function call args should start after (, got {token:?}"
-                        ));
-                        return Err(());
+                        return Err(format!("wrong function call args separator: {token:?}"));
                     }
                 }
                 Token::Comma => (), // usual separator
-                etc => {
-                    self.errors.push(format!(
-                        "expected a comma to separate fn call args, got {etc:?}"
-                    ));
-                    return Err(());
-                }
+                etc => return Err(format!("wrong function call args separator: {etc:?}")),
             }
 
-            let expr = match self.parse_expression(PrecedenceLevel::Lowest) {
-                Some(expr) => expr,
-                None => {
-                    self.errors.push(format!(
-                        "unable to parse arguments of a fn call starting from {token}"
-                    ));
-                    return Err(());
-                }
-            };
+            let expr = self
+                .parse_expression(PrecedenceLevel::Lowest)
+                .map_err(|e| {
+                    format!("error parsing a fn call args: {e}, already parsed: {args:?}")
+                })?;
             args.push(expr);
         }
 
-        self.errors.push(format!(
-            "function call args should be enclosed in (), didn't reach the )"
-        ));
-
-        Err(())
+        Err(format!(
+            "found args {args:?} but no `)' reached parsing a fn call args"
+        ))
     }
 
     pub fn skip_semicolon(&mut self) {

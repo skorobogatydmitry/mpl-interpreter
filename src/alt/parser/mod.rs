@@ -40,28 +40,31 @@ impl PrecedenceLevel {
 
 pub struct Parser<'a> {
     lexer: Peekable<Lexer<'a>>,
-    pub errors: Vec<String>,
+    error: String,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(lexer: Lexer<'a>) -> Self {
         Self {
             lexer: lexer.peekable(),
-            errors: vec![],
+            error: "".to_string(),
         }
     }
 
-    pub fn parse_program(&mut self) -> Option<Program> {
+    pub fn parse_program(&mut self) -> Result<Program, String> {
         let mut program = Program { statements: vec![] };
 
         while let Some(stmt) = self.parse_statement() {
             program.statements.push(stmt);
         }
 
-        Some(program)
+        if self.error.is_empty() {
+            Ok(program)
+        } else {
+            Err(format!("error parsing the program: {}", self.error))
+        }
     }
 
-    // TODO: review why there could be None and replace with Result if applicable
     fn parse_statement(&mut self) -> Option<Statement> {
         let to_call = match self.lexer.peek() {
             Some(Token::Return) => {
@@ -79,7 +82,7 @@ impl<'a> Parser<'a> {
         match to_call(self) {
             Ok(statement) => return Some(statement),
             Err(msg) => {
-                self.errors.push(msg);
+                self.error = msg;
                 return None;
             }
         }
@@ -142,9 +145,10 @@ impl<'a> Parser<'a> {
     fn parse_expression(&mut self, precedence: PrecedenceLevel) -> Result<Expression, String> {
         let mut left_expr = match self.lexer.next() {
             Some(Token::Identifier(idf)) => Ok(Expression::Identifier(Identifier { value: idf })),
-            Some(Token::Int(literal)) => self
-                .parse_integer_literal(literal)
-                .ok_or(format!("error parsing integer literal: TODO")),
+            Some(Token::Int(literal)) => literal
+                .parse()
+                .map_err(|e| (format!("cannot parse {literal} as integer(i64): {e:?}")))
+                .map(|value| Expression::Integer(Integer { value })),
             Some(operator @ Token::Bang) | Some(operator @ Token::Minus) => self
                 .parse_expression(PrecedenceLevel::Prefix)
                 .map(|operand| {
@@ -160,10 +164,10 @@ impl<'a> Parser<'a> {
                 .map_err(|e| format!("error parsing a groupped expression: {e}")),
             Some(Token::If) => self
                 .parse_if_expression()
-                .ok_or(format!("error parsing an if expression: TODO")),
+                .map_err(|e| format!("error parsing an if expression: {e}")),
             Some(Token::Function) => self
                 .parse_fn_expression()
-                .ok_or(format!("error parsing a fn expression: TODO")),
+                .map_err(|e| format!("error parsing a fn expression: {e}")),
             Some(Token::Semicolon) => Ok(Expression::Empty),
             Some(etc) => Err(format!("no prefix parsing fn for token kind {etc:?}")),
             None => Err(format!("no token to parse an expression")),
@@ -194,17 +198,6 @@ impl<'a> Parser<'a> {
         Ok(left_expr)
     }
 
-    fn parse_integer_literal(&mut self, literal: String) -> Option<Expression> {
-        match literal.parse() {
-            Ok(val) => Some(Expression::Integer(Integer { value: val })),
-            Err(e) => {
-                self.errors
-                    .push(format!("cannot parse {} as i64: {:?}", literal, e));
-                None
-            }
-        }
-    }
-
     fn parse_groupped_expression(&mut self) -> Result<Expression, String> {
         let expression = self.parse_expression(PrecedenceLevel::Lowest);
         match self.lexer.next() {
@@ -215,102 +208,83 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_if_expression(&mut self) -> Option<Expression> {
-        let cond = if let Some(next_token) = self.lexer.next() {
-            if next_token != Token::Lparen {
-                self.errors
-                    .push(format!("expected ( for if condition, got {next_token}",));
-                return None;
-            }
-            if let Ok(cond) = self.parse_groupped_expression() {
-                cond
-            } else {
-                self.errors
-                    .push(format!("cannot parse condition of the if expression"));
-                return None;
-            }
-        } else {
-            self.errors.push(format!("no token for the if condition"));
-            return None;
-        };
+    fn parse_if_expression(&mut self) -> Result<Expression, String> {
+        let cond = self
+            .lexer
+            .next()
+            .ok_or(format!("no token after `if' to parse"))
+            .and_then(|token| {
+                if Token::Lparen == token {
+                    Ok(self
+                        .parse_groupped_expression()
+                        .map_err(|e| format!("cannot parse condition of the if expression: {e}"))?)
+                } else {
+                    Err(format!("expected ( for if condition, got {token:?}"))
+                }
+            })?;
 
         match self.lexer.next() {
             Some(Token::Lbrace) => (),
-            etc => {
-                self.errors
-                    .push(format!("invalid syntax: expected `{{', got {etc:?}"));
-                return None;
-            }
+            etc => return Err(format!("invalid syntax: expected `{{', got {etc:?}")),
         }
 
-        let cons = match self.parse_block_statement() {
-            Ok(block) => block,
-            Err(_) => return None,
-        };
+        let cons = self
+            .parse_block_statement()
+            .map_err(|e| format!("error parsing the if's consequence: {e:?}"))?;
 
         let alt = if let Some(Token::Else) = self.lexer.peek() {
             self.lexer.next(); // skip the else
-            if let Some(Token::Lbrace) = self.lexer.next() {
-                match self.parse_block_statement() {
-                    Ok(block) => Some(block),
-                    Err(_) => return None,
+            match self.lexer.next() {
+                Some(Token::Lbrace) => Some(
+                    self.parse_block_statement()
+                        .map_err(|e| format!("error parsing else's block: {e:?}"))?,
+                ),
+                token => {
+                    return Err(format!(
+                        "invalid syntax: expected `else {{', got `else {token:?}'"
+                    ))
                 }
-            } else {
-                self.errors.push(format!(
-                    "invalid syntax: expected `else {{', got `else {:?}'",
-                    self.lexer.peek()
-                ));
-                return None;
             }
         } else {
             // there's no else
             None
         };
 
-        Some(Expression::If(If {
+        Ok(Expression::If(If {
             condition: Box::new(cond),
             consequence: cons,
             alternative: alt,
         }))
     }
 
-    fn parse_fn_expression(&mut self) -> Option<Expression> {
-        let parameters = match self.lexer.next() {
-            Some(Token::Lparen) => {
-                if let Ok(params) = self.parse_fn_params() {
-                    params
+    fn parse_fn_expression(&mut self) -> Result<Expression, String> {
+        let parameters = self
+            .lexer
+            .next()
+            .ok_or(format!("no tokens after `fn'",))
+            .and_then(|token| {
+                if token == Token::Lparen {
+                    self.parse_fn_params()
                 } else {
-                    // there's an error, bubble-up
-                    return None;
+                    Err("no `(' after `fn'".to_string())
                 }
-            }
-            etc => {
-                // `fn(`
-                //    ^
-                self.errors
-                    .push(format!("invalid syntax: expected `fn(', got `fn {etc:?}'",));
-                return None;
-            }
-        };
+            })?;
 
-        let body = match self.lexer.next() {
-            Some(Token::Lbrace) => match self.parse_block_statement() {
-                Ok(block) => block,
-                Err(_) => return None,
-            },
-            etc => {
-                // `fn(...) {`
-                //          ^
-                self.errors.push(format!(
-                    "invalid syntax: expected `{{' after fn parameters, got {etc:?}",
-                ));
-                return None;
-            }
-        };
-        Some(Expression::Fn(Function { body, parameters }))
+        let body = self
+            .lexer
+            .next()
+            .ok_or(format!("no tokens after fn's parameters ({parameters:?})",))
+            .and_then(|token| {
+                if token == Token::Lbrace {
+                    self.parse_block_statement()
+                } else {
+                    Err(format!("no `{{' after fn({parameters:?})"))
+                }
+            })?;
+        Ok(Expression::Fn(Function { body, parameters }))
     }
 
-    fn parse_fn_params(&mut self) -> Result<Vec<Identifier>, ()> {
+    fn parse_fn_params(&mut self) -> Result<Vec<Identifier>, String> {
         let mut params = vec![];
 
         if self.lexer.peek() == Some(&Token::Rparen) {
@@ -323,20 +297,14 @@ impl<'a> Parser<'a> {
             match self.lexer.next() {
                 Some(Token::Comma) => continue,
                 Some(Token::Rparen) => return Ok(params),
-                token => {
-                    self.errors
-                        .push(format!("expected `,' or `)', got {token:?}"));
-                    return Err(());
-                }
+                token => return Err(format!("expected `,' or `)', got {token:?}")),
             }
         }
 
-        self.errors
-            .push(format!("incorrect parameters decl: missing `,' or `)'"));
-        Err(())
+        Err(format!("incorrect parameters decl: missing `,' or `)'"))
     }
 
-    fn parse_block_statement(&mut self) -> Result<Block, ()> {
+    fn parse_block_statement(&mut self) -> Result<Block, String> {
         let mut block = Block { statements: vec![] };
 
         if self.lexer.peek() == Some(&Token::Rbrace) {
@@ -352,9 +320,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.errors
-            .push(format!("no }} found - block is not closed"));
-        Err(())
+        Err(format!("no }} found - block is not closed"))
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {

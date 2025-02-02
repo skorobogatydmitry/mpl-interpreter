@@ -18,6 +18,7 @@ pub struct Return {
     pub ret_expr: Option<Expression>,
 }
 
+// TODO: move to the enum
 /// wrapper to allow `x + 5` to be a statement
 #[derive(Debug, PartialEq)]
 pub struct ExpressionStatement {

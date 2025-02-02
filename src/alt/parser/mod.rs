@@ -68,59 +68,73 @@ impl<'a> Parser<'a> {
 
     // TODO: review why there could be None and replace with Result if applicable
     fn parse_statement(&mut self) -> Option<Statement> {
-        match self.lexer.peek() {
-            Some(Token::Let) => {
-                self.lexer.next();
-                self.parse_let_statement()
-            }
+        let to_call = match self.lexer.peek() {
             Some(Token::Return) => {
-                self.lexer.next();
-                self.parse_return_statement()
+                self.lexer.next(); // skip the return
+                Self::parse_return_statement
             }
-            Some(_) => self.parse_expression_statement(),
-            None => None,
+            Some(Token::Let) => {
+                self.lexer.next(); // skip the let
+                Self::parse_let_statement
+            }
+            Some(_) => Self::parse_expression_statement,
+            None => return None,
+        };
+
+        match to_call(self) {
+            Ok(statement) => return Some(statement),
+            Err(msg) => {
+                self.errors.push(msg);
+                return None;
+            }
         }
     }
 
-    fn parse_return_statement(&mut self) -> Option<Statement> {
+    fn parse_return_statement(&mut self) -> Result<Statement, String> {
         let ret_expr = self.parse_expression(PrecedenceLevel::Lowest);
         self.skip_semicolon();
-        Some(Statement::Return(Return { ret_expr }))
+        Ok(Statement::Return(Return { ret_expr }))
     }
 
-    fn parse_let_statement(&mut self) -> Option<Statement> {
-        self.lexer.next().and_then(|token| match token {
-            Token::Identifier(idf) => {
-                let name = Identifier { value: idf };
+    fn parse_let_statement(&mut self) -> Result<Statement, String> {
+        let name = self
+            .lexer
+            .next()
+            .ok_or("no tokens after `let'".to_string())
+            .and_then(|token| {
+                if let Token::Identifier(idf) = token {
+                    Ok(Identifier { value: idf })
+                } else {
+                    Err(format!(
+                        "incorrect let statement: expected identifier, got {token:?}"
+                    ))
+                }
+            })?;
 
-                self.lexer.next().and_then(|token| match token {
-                    Token::Assign => {
-                        let value = self.parse_expression(PrecedenceLevel::Lowest);
-                        self.skip_semicolon();
-                        Some(Statement::Let(Let { name, value }))
-                    }
-                    token => {
-                        self.errors.push(format!("expected assign, got {token}"));
-                        None
-                    }
+        self.lexer
+            .next()
+            .ok_or(format!("no tokens after `let {name}', expected `='"))
+            .and_then(|token| {
+                if let Token::Assign = token {
+                    let value = self.parse_expression(PrecedenceLevel::Lowest);
+                    self.skip_semicolon();
+                    Ok(Statement::Let(Let { name, value }))
+                } else {
+                    Err(format!("expected `=', got {token}"))
+                }
+            })
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<Statement, String> {
+        /* the whole expression has the lowest precedence */
+        self.parse_expression(PrecedenceLevel::Lowest)
+            .ok_or(format!("cannot parse expression: TODO!"))
+            .map(|expr| {
+                self.skip_semicolon();
+                Statement::Expression(statement::ExpressionStatement {
+                    expression: Some(expr),
                 })
-            }
-            token => {
-                self.errors
-                    .push(format!("expected an identifier, got {token}"));
-                None
-            }
-        })
-    }
-
-    fn parse_expression_statement(&mut self) -> Option<Statement> {
-        let expression = self.parse_expression(
-            PrecedenceLevel::Lowest, // the whole expression has the lowest precedence
-        );
-        self.skip_semicolon();
-        Some(Statement::Expression(statement::ExpressionStatement {
-            expression,
-        }))
+            })
     }
 
     fn parse_expression(&mut self, precedence: PrecedenceLevel) -> Option<Expression> {

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::alt::token::Token;
 
 use super::statement;
@@ -8,6 +10,12 @@ use super::Expression;
 #[derive(Debug, PartialEq)]
 pub struct Identifier {
     pub value: String, // actual identifier's name
+}
+
+impl Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
 }
 
 // TODO: place it right in the expression enum

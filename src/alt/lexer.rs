@@ -41,7 +41,6 @@ impl<'a> Lexer<'a> {
     }
 
     fn read_char(&mut self) -> char {
-        // TODO: return & process Option
         self.input.next().unwrap_or('\0')
     }
 
@@ -94,7 +93,7 @@ impl<'a> Iterator for Lexer<'a> {
                 } else if ch.is_numeric() {
                     Token::Int(self.read_number(ch))
                 } else {
-                    Token::Illegal("".to_string())
+                    Token::Illegal(ch.to_string())
                 }
             }
         })

@@ -5,17 +5,17 @@ pub mod statement;
 pub enum Statement {
     Let(statement::Let),
     Return(statement::Return),
-    Expression(statement::ExpressionStatement),
+    Expression(Expression),
     Block(statement::Block),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    Identifier(expression::Identifier),
-    Integer(expression::Integer),
+    Identifier(String), // actual identifier's name
+    Integer(i64),
     Prefix(expression::Prefix),
     Infix(expression::Infix),
-    Boolean(expression::Boolean),
+    Boolean(bool),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),

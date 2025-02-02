@@ -1,6 +1,5 @@
 //! statement is the main building block of a program
 
-use super::expression::*;
 use super::Expression;
 use super::Statement;
 
@@ -8,7 +7,7 @@ use super::Statement;
 /// let <identifier> = <expression>;  
 #[derive(Debug, PartialEq)]
 pub struct Let {
-    pub name: Identifier, // identifier name: in `let x = 10;` it's `x`
+    pub name: String, // identifier name: in `let x = 10;` it's `x`
     pub value: Option<Expression>,
 }
 
@@ -16,13 +15,6 @@ pub struct Let {
 #[derive(Debug, PartialEq)]
 pub struct Return {
     pub ret_expr: Option<Expression>,
-}
-
-// TODO: move to the enum
-/// wrapper to allow `x + 5` to be a statement
-#[derive(Debug, PartialEq)]
-pub struct ExpressionStatement {
-    pub expression: Option<Expression>,
 }
 
 /// { 5; 6; 7; add(1,2,x); }

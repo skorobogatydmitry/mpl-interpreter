@@ -3,7 +3,7 @@ use std::iter::Peekable;
 use crate::alt::{ast::*, lexer::Lexer, token::Token};
 
 use super::ast::{
-    expression::{Boolean, Call, Function, Identifier, If, Infix, Integer, Prefix},
+    expression::{Call, Function, If, Infix, Prefix},
     statement::{Block, Let, Return},
 };
 
@@ -103,10 +103,10 @@ impl<'a> Parser<'a> {
             .ok_or("no tokens after `let'".to_string())
             .and_then(|token| {
                 if let Token::Identifier(idf) = token {
-                    Ok(Identifier { value: idf })
+                    Ok(idf)
                 } else {
                     Err(format!(
-                        "incorrect let statement: expected identifier, got {token:?}"
+                        "error parsing let statement: expected identifier, got {token:?}"
                     ))
                 }
             })?;
@@ -118,14 +118,16 @@ impl<'a> Parser<'a> {
                 if let Token::Assign = token {
                     let value = self
                         .parse_expression(PrecedenceLevel::Lowest)
-                        .map_err(|e| format!("error parsing let statement: {e}"))?;
+                        .map_err(|e| format!("wrong expression for the let statement: {e}"))?;
                     self.skip_semicolon();
                     Ok(Statement::Let(Let {
                         name,
                         value: Some(value),
                     }))
                 } else {
-                    Err(format!("expected `=', got {token}"))
+                    Err(format!(
+                        "error parsing let statement: expected `=', got {token}"
+                    ))
                 }
             })
     }
@@ -133,22 +135,20 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         /* the whole expression has the lowest precedence */
         self.parse_expression(PrecedenceLevel::Lowest)
-            .map_err(|e| format!("cannot parse expression: {e}"))
+            .map_err(|e| format!("error parsing expression: {e}"))
             .map(|expr| {
                 self.skip_semicolon();
-                Statement::Expression(statement::ExpressionStatement {
-                    expression: Some(expr),
-                })
+                Statement::Expression(expr)
             })
     }
 
     fn parse_expression(&mut self, precedence: PrecedenceLevel) -> Result<Expression, String> {
         let mut left_expr = match self.lexer.next() {
-            Some(Token::Identifier(idf)) => Ok(Expression::Identifier(Identifier { value: idf })),
+            Some(Token::Identifier(idf)) => Ok(Expression::Identifier(idf)),
             Some(Token::Int(literal)) => literal
                 .parse()
                 .map_err(|e| (format!("cannot parse {literal} as integer(i64): {e:?}")))
-                .map(|value| Expression::Integer(Integer { value })),
+                .map(|value| Expression::Integer(value)),
             Some(operator @ Token::Bang) | Some(operator @ Token::Minus) => self
                 .parse_expression(PrecedenceLevel::Prefix)
                 .map(|operand| {
@@ -157,17 +157,17 @@ impl<'a> Parser<'a> {
                         operand: Box::new(operand),
                     })
                 }),
-            Some(Token::True) => Ok(Expression::Boolean(Boolean { value: true })),
-            Some(Token::False) => Ok(Expression::Boolean(Boolean { value: false })),
+            Some(Token::True) => Ok(Expression::Boolean(true)),
+            Some(Token::False) => Ok(Expression::Boolean(false)),
             Some(Token::Lparen) => self
                 .parse_groupped_expression()
-                .map_err(|e| format!("error parsing a groupped expression: {e}")),
+                .map_err(|e| format!("(groupped expression): {e}")),
             Some(Token::If) => self
                 .parse_if_expression()
-                .map_err(|e| format!("error parsing an if expression: {e}")),
+                .map_err(|e| format!("(if expression): {e}")),
             Some(Token::Function) => self
                 .parse_fn_expression()
-                .map_err(|e| format!("error parsing a fn expression: {e}")),
+                .map_err(|e| format!("(fn expression): {e}")),
             Some(Token::Semicolon) => Ok(Expression::Empty),
             Some(etc) => Err(format!("no prefix parsing fn for token kind {etc:?}")),
             None => Err(format!("no token to parse an expression")),
@@ -190,8 +190,8 @@ impl<'a> Parser<'a> {
                 _ => return Ok(left_expr),
             };
             // there's a function to apply
-            left_expr = infix_fn(self, left_expr)
-                .map_err(|e| format!("unable to parse an infix expression: {e}"))?;
+            left_expr =
+                infix_fn(self, left_expr).map_err(|e| format!("(infix expression): {e}"))?;
         }
 
         // reached the end of program
@@ -199,11 +199,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_groupped_expression(&mut self) -> Result<Expression, String> {
-        let expression = self.parse_expression(PrecedenceLevel::Lowest);
+        let expression = self
+            .parse_expression(PrecedenceLevel::Lowest)
+            .map_err(|e| format!("inner expression parsing failed: {e}"))?;
         match self.lexer.next() {
-            Some(Token::Rparen) => {
-                expression.map_err(|e| format!("inner expression parsing failed: {e}"))
-            }
+            Some(Token::Rparen) => Ok(expression),
             etc => Err(format!("expected `)`, got {etc:?}")),
         }
     }
@@ -230,20 +230,16 @@ impl<'a> Parser<'a> {
 
         let cons = self
             .parse_block_statement()
-            .map_err(|e| format!("error parsing the if's consequence: {e:?}"))?;
+            .map_err(|e| format!("error parsing consequence: {e}"))?;
 
         let alt = if let Some(Token::Else) = self.lexer.peek() {
             self.lexer.next(); // skip the else
             match self.lexer.next() {
                 Some(Token::Lbrace) => Some(
                     self.parse_block_statement()
-                        .map_err(|e| format!("error parsing else's block: {e:?}"))?,
+                        .map_err(|e| format!("else's block: {e}"))?,
                 ),
-                token => {
-                    return Err(format!(
-                        "invalid syntax: expected `else {{', got `else {token:?}'"
-                    ))
-                }
+                token => return Err(format!("expected `else {{', got `else {token:?}'")),
             }
         } else {
             // there's no else
@@ -261,7 +257,7 @@ impl<'a> Parser<'a> {
         let parameters = self
             .lexer
             .next()
-            .ok_or(format!("no tokens after `fn'",))
+            .ok_or(format!("no token after `fn'",))
             .and_then(|token| {
                 if token == Token::Lparen {
                     self.parse_fn_params()
@@ -273,18 +269,21 @@ impl<'a> Parser<'a> {
         let body = self
             .lexer
             .next()
-            .ok_or(format!("no tokens after fn's parameters ({parameters:?})",))
+            .ok_or(format!(
+                "no tokens after fn's parameters fn({})",
+                parameters.join(",")
+            ))
             .and_then(|token| {
                 if token == Token::Lbrace {
                     self.parse_block_statement()
                 } else {
-                    Err(format!("no `{{' after fn({parameters:?})"))
+                    Err(format!("no `{{' after fn({})", parameters.join(",")))
                 }
             })?;
         Ok(Expression::Fn(Function { body, parameters }))
     }
 
-    fn parse_fn_params(&mut self) -> Result<Vec<Identifier>, String> {
+    fn parse_fn_params(&mut self) -> Result<Vec<String>, String> {
         let mut params = vec![];
 
         if self.lexer.peek() == Some(&Token::Rparen) {
@@ -293,15 +292,21 @@ impl<'a> Parser<'a> {
         }
 
         while let Some(Token::Identifier(value)) = self.lexer.next() {
-            params.push(Identifier { value });
+            params.push(value);
             match self.lexer.next() {
                 Some(Token::Comma) => continue,
                 Some(Token::Rparen) => return Ok(params),
-                token => return Err(format!("expected `,' or `)', got {token:?}")),
+                token => {
+                    return Err(format!(
+                        "wrong parameters separator: expected `,' or `)', got {token:?}"
+                    ))
+                }
             }
         }
 
-        Err(format!("incorrect parameters decl: missing `,' or `)'"))
+        Err(format!(
+            "incorrect parameters declaration: missing `,' or `)'"
+        ))
     }
 
     fn parse_block_statement(&mut self) -> Result<Block, String> {
@@ -320,14 +325,18 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Err(format!("no }} found - block is not closed"))
+        if self.error.is_empty() {
+            Err(format!("block is not closed with `}}'"))
+        } else {
+            Err(self.error.drain(..).collect())
+        }
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, String> {
         let operator = self
             .lexer
             .next()
-            .ok_or(format!("no token available for an operator after {left:?}"))?;
+            .ok_or(format!("no token avaiable for an operator after {left:?}"))?;
 
         let precedence = PrecedenceLevel::from_token(&operator);
         self.parse_expression(precedence).map(|right| {
@@ -352,26 +361,19 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.lexer.next() {
             match token {
                 Token::Rparen => return Ok(args),
-                Token::Lparen => {
-                    if !args.is_empty() {
-                        return Err(format!("wrong function call args separator: {token:?}"));
-                    }
-                }
-                Token::Comma => (), // usual separator
-                etc => return Err(format!("wrong function call args separator: {etc:?}")),
+                Token::Comma | Token::Lparen => (), // usual separators
+                etc => return Err(format!("wrong fn call args separator: {etc:?}")),
             }
 
             let expr = self
                 .parse_expression(PrecedenceLevel::Lowest)
                 .map_err(|e| {
-                    format!("error parsing a fn call args: {e}, already parsed: {args:?}")
+                    format!("error parsing fn call args: {e} (already parsed: {args:?})")
                 })?;
             args.push(expr);
         }
 
-        Err(format!(
-            "found args {args:?} but no `)' reached parsing a fn call args"
-        ))
+        Err(format!("found fn call args {args:?} but no `)' seen"))
     }
 
     pub fn skip_semicolon(&mut self) {

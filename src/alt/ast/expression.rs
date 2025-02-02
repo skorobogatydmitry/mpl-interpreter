@@ -1,28 +1,7 @@
-use std::fmt::Display;
-
 use crate::alt::token::Token;
 
 use super::statement;
 use super::Expression;
-
-// TODO: place it right in the expression enum
-// identifier metadata
-#[derive(Debug, PartialEq)]
-pub struct Identifier {
-    pub value: String, // actual identifier's name
-}
-
-impl Display for Identifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-// TODO: place it right in the expression enum
-#[derive(Debug, PartialEq)]
-pub struct Integer {
-    pub value: i64,
-}
 
 // there are only 2 operators: ! and -, so it could be e.g. -5 or !false
 #[derive(Debug, PartialEq)]
@@ -39,12 +18,6 @@ pub struct Infix {
     pub right: Box<Expression>,
 }
 
-// TODO: place it right in the expression enum
-#[derive(Debug, PartialEq)]
-pub struct Boolean {
-    pub value: bool,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct If {
     pub condition: Box<Expression>,
@@ -58,7 +31,7 @@ pub struct If {
 /// fn() { print_some() }
 #[derive(Debug, PartialEq)]
 pub struct Function {
-    pub parameters: Vec<Identifier>,
+    pub parameters: Vec<String>,
     pub body: statement::Block,
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::alt::ast::{statement::ExpressionStatement, Statement};
+use crate::alt::ast::Statement;
 
 #[test]
 fn test_let_statement() {
@@ -13,9 +13,9 @@ fn test_let_statement() {
 
     match &program.statements[0] {
         Statement::Let(data) => {
-            assert_eq!("x", data.name.value);
+            assert_eq!("x", data.name);
             match &data.value {
-                Some(Expression::Integer(int_expr)) => assert_eq!(5, int_expr.value),
+                Some(Expression::Integer(val)) => assert_eq!(5, *val),
                 _ => panic!("value is not an integer but {:?}", data.value),
             }
         }
@@ -24,9 +24,9 @@ fn test_let_statement() {
 
     match &program.statements[1] {
         Statement::Let(data) => {
-            assert_eq!("y", data.name.value);
+            assert_eq!("y", data.name);
             match &data.value {
-                Some(Expression::Boolean(bool_expr)) => assert_eq!(true, bool_expr.value),
+                Some(Expression::Boolean(val)) => assert_eq!(true, *val),
                 _ => panic!("value is not a bool but {:?}", data.value),
             }
         }
@@ -35,9 +35,9 @@ fn test_let_statement() {
 
     match &program.statements[2] {
         Statement::Let(data) => {
-            assert_eq!("foo_bar", data.name.value);
+            assert_eq!("foo_bar", data.name);
             match &data.value {
-                Some(Expression::Identifier(idf_expr)) => assert_eq!("y", idf_expr.value),
+                Some(Expression::Identifier(idf)) => assert_eq!("y", idf),
                 _ => panic!("value is not an identifier but {:?}", data.value),
             }
         }
@@ -45,30 +45,60 @@ fn test_let_statement() {
     }
 }
 
-// TODO: update the test
-// #[test]
-// fn test_let_statement_errors() {
-//     let input = r#"
-//         let x = 5;
-//         let y > 10;
-//         let foo_bar baz = 83838;
-//         "#;
+#[test]
+fn test_parsing_errors() {
+    let inputs = vec![
+        ("let", "no tokens after `let'"),
+        (
+            "let ! = 2;",
+            "error parsing let statement: expected identifier, got Bang",
+        ),
+        ("let x", "no tokens after `let x', expected `='"),
+        (
+            "let x = !=1;",
+            "wrong expression for the let statement: no prefix parsing fn for token kind NotEq",
+        ),
+        (
+            "let x ! 2;",
+            "error parsing let statement: expected `=', got Bang",
+        ),
+        (
+            "9999999999999999999999999",
+            "error parsing expression: cannot parse 9999999999999999999999999 as integer(i64): ParseIntError { kind: PosOverflow }",
+        ),
+        ("(!=2)", "error parsing expression: (groupped expression): inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
+        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)`, got Some(Semicolon)"),
+        ("let x = 5; if", "error parsing expression: (if expression): no token after `if' to parse"),
+        ("if 2 { 5 };", "error parsing expression: (if expression): expected ( for if condition, got Int(\"2\")"),
+        ("if (!=1)", "error parsing expression: (if expression): cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
+        ("if (true) !=", "error parsing expression: (if expression): invalid syntax: expected `{', got Some(NotEq)"),
+        ("if (true) { !=5 }", "error parsing expression: (if expression): error parsing consequence: error parsing expression: no prefix parsing fn for token kind NotEq"),
+        ("if (true) { 5 } else { !=5 }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token kind NotEq"),
+        ("if (true) { 5 } else !=", "error parsing expression: (if expression): expected `else {', got `else Some(NotEq)'"),
+        ("let x = 5; fn", "error parsing expression: (fn expression): no token after `fn'"),
+        ("let x = 5; fn==", "error parsing expression: (fn expression): no `(' after `fn'"),
+        ("fn(a,b)", "error parsing expression: (fn expression): no tokens after fn's parameters fn(a,b)"),
+        ("fn(a) ==", "error parsing expression: (fn expression): no `{' after fn(a)"),
+        ("fn(a|b)", "error parsing expression: (fn expression): wrong parameters separator: expected `,' or `)', got Some(Illegal(\"|\"))"),
+        ("fn(a,b,c, { 5 }", "error parsing expression: (fn expression): incorrect parameters declaration: missing `,' or `)'"),
+        ("fn() { 5;", "error parsing expression: (fn expression): block is not closed with `}'"),
+        ("fn() { let x != 5; }", "error parsing expression: (fn expression): error parsing let statement: expected `=', got NotEq"),
+        ("!=5", "error parsing expression: no prefix parsing fn for token kind NotEq"),
+        ("!", "error parsing expression: no token to parse an expression"),
+        ("add(a + 5|b)", "error parsing expression: (infix expression): wrong fn call args separator: Illegal(\"|\")"),
+        ("add(1,2,3 + 4, !=5", "error parsing expression: (infix expression): error parsing fn call args: no prefix parsing fn for token kind NotEq (already parsed: [Integer(1), Integer(2), Infix(Infix { operator: Plus, left: Integer(3), right: Integer(4) })])"),
+        ("add(1,2,3", "error parsing expression: (infix expression): found fn call args [Integer(1), Integer(2), Integer(3)] but no `)' seen"),
+    ];
 
-//     let lexer = Lexer::new(input);
-//     let mut parser = Parser::new(lexer);
+    for (input, expected) in inputs {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
 
-//     parser.parse_program();
+        let err = parser.parse_program().expect_err("should be an error");
 
-//     assert_eq!(
-//         vec![
-//             "expected next token to be Assign, got Gt",
-//             "no prefix parsing fn for token kind Gt",
-//             "expected next token to be Assign, got Identifier",
-//             "no prefix parsing fn for token kind Assign"
-//         ],
-//         parser.errors
-//     );
-// }
+        assert_eq!(format!("error parsing the program: {}", expected), err);
+    }
+}
 
 #[test]
 fn test_return_statement() {
@@ -122,17 +152,8 @@ fn test_indentifier_expression() {
     for input in inputs {
         let mut program = make_program_from(input, Some(1));
         match program.statements.pop().unwrap() {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                match expr.expression.as_ref().unwrap() {
-                    Expression::Identifier(idf) => {
-                        assert_eq!("foobar", idf.value);
-                    }
-                    _ => panic!("unexpected expression type: {:?}", expr),
-                }
-            }
-
-            expr => panic!("unexpected statement type: {expr:?}"),
+            Statement::Expression(Expression::Identifier(idf)) => assert_eq!("foobar", idf),
+            expr => panic!("expected identifier expression statement: {expr:?}"),
         }
     }
 }
@@ -141,9 +162,7 @@ fn test_indentifier_expression() {
 fn test_empty_expression_statement() {
     let input = "5;;";
     let mut program = make_program_from(input, Some(2));
-    if let Some(Statement::Expression(ExpressionStatement { expression: None })) =
-        program.statements.pop()
-    {}
+    if let Some(Statement::Expression(Expression::Empty)) = program.statements.pop() {}
 }
 
 #[test]
@@ -153,16 +172,8 @@ fn test_literal_expression() {
     for input in inputs {
         let mut program = make_program_from(input, Some(1));
         match program.statements.pop().unwrap() {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                match expr.expression.as_ref().unwrap() {
-                    Expression::Integer(int_expr) => {
-                        assert_eq!(5, int_expr.value);
-                    }
-                    expr => panic!("expression not an integer literal but {expr:?}"),
-                }
-            }
-            stmt => panic!("statement is no an expression but {stmt:?}"),
+            Statement::Expression(Expression::Integer(integer)) => assert_eq!(5, integer),
+            stmt => panic!("statement is no an int expression but {stmt:?}"),
         }
     }
 }
@@ -181,15 +192,9 @@ fn test_parse_prefix_expression() {
         let mut program = make_program_from(input, Some(1));
 
         match program.statements.pop().unwrap() {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                match expr.expression.unwrap() {
-                    Expression::Prefix(expr) => {
-                        assert_eq!(op, expr.operator);
-                        assert_literal_expr(*expr.operand, operand);
-                    }
-                    prefix_expr => panic!("not a prefix expression: {prefix_expr:?}"),
-                }
+            Statement::Expression(Expression::Prefix(expr)) => {
+                assert_eq!(op, expr.operator);
+                assert_literal_expr(*expr.operand, operand);
             }
             stmt => panic!("not a statement expression: {stmt:?}"),
         }
@@ -262,13 +267,10 @@ fn test_parse_infix_expression_int() {
         let mut program = make_program_from(input, Some(1));
 
         match program.statements.pop().unwrap() {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                if let Expression::Infix(expr) = expr.expression.unwrap() {
-                    assert_infix_expression(expr, left_op, operator, right_op);
-                }
+            Statement::Expression(Expression::Infix(expr)) => {
+                assert_infix_expression(expr, left_op, operator, right_op)
             }
-            stmt => panic!("not a statement expression: {stmt:?}"),
+            stmt => panic!("not an infix statement expression: {stmt:?}"),
         }
     }
 }
@@ -352,16 +354,8 @@ fn test_boolean_expression() {
 
     for (expected, stmt) in expected_values.into_iter().zip(program.statements) {
         match stmt {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                match expr.expression.as_ref().unwrap() {
-                    Expression::Boolean(expr) => {
-                        assert_eq!(expected, expr.value);
-                    }
-                    expr => panic!("expected boolean expression, got {expr:?}"),
-                }
-            }
-            stmt => panic!("expected expression, got {stmt:?}"),
+            Statement::Expression(Expression::Boolean(bool)) => assert_eq!(expected, bool),
+            stmt => panic!("expected a boolean expression, got {stmt:?}"),
         }
     }
 }
@@ -375,9 +369,7 @@ fn test_if_expression() {
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
-        Statement::Expression(ExpressionStatement {
-            expression: Some(Expression::If(mut if_expr)),
-        }) => {
+        Statement::Expression(Expression::If(mut if_expr)) => {
             if let Expression::Infix(expr) = *if_expr.condition {
                 assert_infix_expression(
                     expr,
@@ -388,10 +380,9 @@ fn test_if_expression() {
             }
             assert_eq!(1, if_expr.consequence.statements.len());
             match if_expr.consequence.statements.pop().unwrap() {
-                Statement::Expression(cons) => assert_literal_expr(
-                    cons.expression.unwrap(),
-                    Expectation::String("x".to_string()),
-                ),
+                Statement::Expression(cons) => {
+                    assert_literal_expr(cons, Expectation::String("x".to_string()))
+                }
                 some => panic!("consequence is not an expression, but {some:?}"),
             }
 
@@ -410,39 +401,31 @@ fn test_if_else_expression() {
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
-        Statement::Expression(expr) => {
-            assert!(expr.expression.is_some());
-            match expr.expression.unwrap() {
-                Expression::If(mut if_expr) => {
-                    if let Expression::Infix(expr) = *if_expr.condition {
-                        assert_infix_expression(
-                            expr,
-                            Expectation::String("x".to_string()),
-                            Token::Lt,
-                            Expectation::String("y".to_string()),
-                        );
-                    }
-                    assert_eq!(1, if_expr.consequence.statements.len());
-                    match if_expr.consequence.statements.pop().unwrap() {
-                        Statement::Expression(cons) => assert_literal_expr(
-                            cons.expression.unwrap(),
-                            Expectation::String("x".to_string()),
-                        ),
-                        some => panic!("consequence is not an expression, but {some:?}"),
-                    }
-
-                    match if_expr.alternative.unwrap().statements.pop().unwrap() {
-                        Statement::Expression(alt) => assert_literal_expr(
-                            alt.expression.unwrap(),
-                            Expectation::String("y".to_string()),
-                        ),
-                        some => panic!("consequence is not an expression, but {some:?}"),
-                    }
+        Statement::Expression(Expression::If(mut if_expr)) => {
+            if let Expression::Infix(expr) = *if_expr.condition {
+                assert_infix_expression(
+                    expr,
+                    Expectation::String("x".to_string()),
+                    Token::Lt,
+                    Expectation::String("y".to_string()),
+                );
+            }
+            assert_eq!(1, if_expr.consequence.statements.len());
+            match if_expr.consequence.statements.pop().unwrap() {
+                Statement::Expression(cons) => {
+                    assert_literal_expr(cons, Expectation::String("x".to_string()))
                 }
-                some => panic!("not an if expression but {some:?}"),
+                some => panic!("consequence is not an expression, but {some:?}"),
+            }
+
+            match if_expr.alternative.unwrap().statements.pop().unwrap() {
+                Statement::Expression(alt) => {
+                    assert_literal_expr(alt, Expectation::String("y".to_string()))
+                }
+                some => panic!("consequence is not an expression, but {some:?}"),
             }
         }
-        some => panic!("not an expression but {some:?}"),
+        some => panic!("not an if expression but {some:?}"),
     }
 }
 
@@ -452,39 +435,29 @@ fn test_function_expression() {
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
-        Statement::Expression(expr) => {
-            assert!(expr.expression.is_some());
-            match expr.expression.unwrap() {
-                Expression::Fn(mut fn_expr) => {
-                    assert_eq!(2, fn_expr.parameters.len());
-                    assert_eq!(
-                        vec!["x", "y"],
-                        fn_expr
-                            .parameters
-                            .iter()
-                            .map(|p| p.value.as_str())
-                            .collect::<Vec<&str>>()
-                    );
-                    assert_eq!(1, fn_expr.body.statements.len());
+        Statement::Expression(Expression::Fn(mut fn_expr)) => {
+            assert_eq!(2, fn_expr.parameters.len());
+            assert_eq!(
+                vec!["x", "y"],
+                fn_expr
+                    .parameters
+                    .iter()
+                    .map(|p| p.as_str())
+                    .collect::<Vec<&str>>()
+            );
+            assert_eq!(1, fn_expr.body.statements.len());
 
-                    match fn_expr.body.statements.pop().unwrap() {
-                        Statement::Expression(stmt) => {
-                            if let Expression::Infix(expr) = stmt.expression.unwrap() {
-                                assert_infix_expression(
-                                    expr,
-                                    Expectation::String("x".to_string()),
-                                    Token::Plus,
-                                    Expectation::String("y".to_string()),
-                                )
-                            }
-                        }
-                        some => panic!("not an expression but {some:?}"),
-                    }
-                }
-                some => panic!("not a fn expression but {some:?}"),
+            match fn_expr.body.statements.pop().unwrap() {
+                Statement::Expression(Expression::Infix(expr)) => assert_infix_expression(
+                    expr,
+                    Expectation::String("x".to_string()),
+                    Token::Plus,
+                    Expectation::String("y".to_string()),
+                ),
+                some => panic!("not an infix expression but {some:?}"),
             }
         }
-        some => panic!("not an expression but {some:?}"),
+        some => panic!("not a fn expression but {some:?}"),
     }
 }
 
@@ -500,23 +473,17 @@ fn test_fn_params_parsing() {
         let program = make_program_from(input, Some(1));
 
         match &program.statements[0] {
-            Statement::Expression(expr) => {
-                assert!(expr.expression.is_some());
-                match expr.expression.as_ref().unwrap() {
-                    Expression::Fn(fn_expr) => {
-                        assert_eq!(
-                            expectation,
-                            fn_expr
-                                .parameters
-                                .iter()
-                                .map(|p| p.value.as_str())
-                                .collect::<Vec<&str>>()
-                        );
-                    }
-                    some => panic!("not a fn expression but {some:?}"),
-                }
+            Statement::Expression(Expression::Fn(fn_expr)) => {
+                assert_eq!(
+                    expectation,
+                    fn_expr
+                        .parameters
+                        .iter()
+                        .map(|p| p.as_str())
+                        .collect::<Vec<&str>>()
+                );
             }
-            some => panic!("not an expression but {some:?}"),
+            some => panic!("not a fn expression but {some:?}"),
         }
     }
 }
@@ -528,34 +495,25 @@ fn test_call_fn() {
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
-        Statement::Expression(expr) => {
-            assert!(expr.expression.is_some());
-            match expr.expression.unwrap() {
-                Expression::Call(mut call_expr) => {
-                    assert_literal_expr(
-                        *call_expr.function,
-                        Expectation::String("add".to_string()),
-                    );
-                    if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
-                        assert_infix_expression(
-                            expr,
-                            Expectation::Int(4),
-                            Token::Plus,
-                            Expectation::Int(5),
-                        );
-                    }
-                    if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
-                        assert_infix_expression(
-                            expr,
-                            Expectation::Int(2),
-                            Token::Asterisk,
-                            Expectation::Int(3),
-                        );
-                    }
-                    assert_literal_expr(call_expr.arguments.pop().unwrap(), Expectation::Int(1));
-                }
-                some => panic!("not a call expression but {some:?}"),
+        Statement::Expression(Expression::Call(mut call_expr)) => {
+            assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
+            if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
+                assert_infix_expression(
+                    expr,
+                    Expectation::Int(4),
+                    Token::Plus,
+                    Expectation::Int(5),
+                );
             }
+            if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
+                assert_infix_expression(
+                    expr,
+                    Expectation::Int(2),
+                    Token::Asterisk,
+                    Expectation::Int(3),
+                );
+            }
+            assert_literal_expr(call_expr.arguments.pop().unwrap(), Expectation::Int(1));
         }
         some => panic!("not an expression but {some:?}"),
     }
@@ -570,9 +528,9 @@ enum Expectation {
 
 fn assert_literal_expr(expr: Expression, expected: Expectation) {
     match (expr, expected) {
-        (Expression::Boolean(data), Expectation::Bool(val)) => assert_eq!(val, data.value),
-        (Expression::Integer(data), Expectation::Int(val)) => assert_eq!(val, data.value),
-        (Expression::Identifier(data), Expectation::String(val)) => assert_eq!(val, data.value),
+        (Expression::Boolean(data), Expectation::Bool(val)) => assert_eq!(val, data),
+        (Expression::Integer(data), Expectation::Int(val)) => assert_eq!(val, data),
+        (Expression::Identifier(data), Expectation::String(val)) => assert_eq!(val, data),
         (expr, expected) => panic!("cannot compare {expr:?} and {expected:?}"),
     }
 }
@@ -594,11 +552,11 @@ fn make_program_from(input: &str, statements_count: Option<usize>) -> Program {
 
     let program = parser.parse_program();
     assert!(
-        parser.errors.is_empty(),
+        parser.error.is_empty(),
         "expected no parsing errors, got {:?}",
-        parser.errors
+        parser.error
     );
-    assert!(program.is_some());
+    assert!(program.is_ok());
     if let Some(statements_count) = statements_count {
         assert_eq!(statements_count, program.as_ref().unwrap().statements.len());
     }

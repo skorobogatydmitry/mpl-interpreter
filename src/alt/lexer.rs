@@ -13,7 +13,46 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next_token(&mut self) -> Option<Token> {
+    /// collect all consecutive numbers to a new String
+    fn read_number(&mut self, start: char) -> String {
+        let mut res = String::new();
+        res.push(start);
+        while self.peek_char().is_numeric() {
+            res.push(self.read_char());
+        }
+
+        res
+    }
+
+    /// whether current character is a valid part of an identifier
+    fn is_valid_id_char(ch: &char) -> bool {
+        ch.is_alphabetic() || *ch == '_'
+    }
+
+    /// collect all valid letters to a new String
+    fn read_identifier(&mut self, start: char) -> String {
+        let mut res = String::new();
+        res.push(start);
+        while Self::is_valid_id_char(self.peek_char()) {
+            res.push(self.read_char());
+        }
+
+        res
+    }
+
+    fn read_char(&mut self) -> char {
+        // TODO: return & process Option
+        self.input.next().unwrap_or('\0')
+    }
+
+    fn peek_char(&mut self) -> &'_ char {
+        self.input.peek().unwrap_or(&'\0')
+    }
+}
+
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+    fn next(&mut self) -> Option<Self::Item> {
         // skip whitespaces
         while self.peek_char().is_ascii_whitespace() {
             self.read_char();
@@ -59,49 +98,6 @@ impl<'a> Lexer<'a> {
                 }
             }
         })
-    }
-
-    /// collect all consecutive numbers to a new String
-    fn read_number(&mut self, start: char) -> String {
-        let mut res = String::new();
-        res.push(start);
-        while self.peek_char().is_numeric() {
-            res.push(self.read_char());
-        }
-
-        res
-    }
-
-    /// whether current character is a valid part of an identifier
-    fn is_valid_id_char(ch: &char) -> bool {
-        ch.is_alphabetic() || *ch == '_'
-    }
-
-    /// collect all valid letters to a new String
-    fn read_identifier(&mut self, start: char) -> String {
-        let mut res = String::new();
-        res.push(start);
-        while Self::is_valid_id_char(self.peek_char()) {
-            res.push(self.read_char());
-        }
-
-        res
-    }
-
-    fn read_char(&mut self) -> char {
-        // TODO: return & process Option
-        self.input.next().unwrap_or('\0')
-    }
-
-    fn peek_char(&mut self) -> &'_ char {
-        self.input.peek().unwrap_or(&'\0')
-    }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_token()
     }
 }
 

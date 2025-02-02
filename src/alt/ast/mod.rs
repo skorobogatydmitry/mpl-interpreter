@@ -1,0 +1,27 @@
+pub mod expression;
+pub mod statement;
+
+#[derive(Debug, PartialEq)]
+pub enum Statement {
+    Let(statement::Let),
+    Return(statement::Return),
+    Expression(statement::ExpressionStatement),
+    Block(statement::Block),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Expression {
+    Identifier(expression::Identifier),
+    Integer(expression::Integer),
+    Prefix(expression::Prefix),
+    Infix(expression::Infix),
+    Boolean(expression::Boolean),
+    If(expression::If),
+    Fn(expression::Function),
+    Call(expression::Call),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Program {
+    pub statements: Vec<Statement>,
+}

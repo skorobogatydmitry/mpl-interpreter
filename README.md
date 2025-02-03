@@ -61,6 +61,11 @@ Evaluation is stateful in a sense that it should be able to bind values / expres
 Functions are simple - they're just objects.
 Function calls require stacked environment support in order to (1) be able to define local variables (with values assigned) and (2) be able to access the outer scope variables (unless shadowed).
 
+# Builtin functions and data types
+
+Strings, Vectors and functions like `len(...)`, `sizeof(...)` are useful... and yet missing in the interpreter.  
+Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.
+
 # The alt module ?
 
 The alt module carries my attempts to make the code code better. Original code has tons of copies of everything, doesn't care if a struct needs to own the value, passes values between helpers carelessly.

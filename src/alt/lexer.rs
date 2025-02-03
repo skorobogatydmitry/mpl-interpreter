@@ -40,6 +40,31 @@ impl<'a> Lexer<'a> {
         res
     }
 
+    // reads a string which ends with "
+    fn read_string(&mut self) -> String {
+        let mut res = "".to_string();
+
+        #[allow(irrefutable_let_patterns)]
+        while let ch = self.read_char() {
+            if ch == '\0' || ch == '"' {
+                break;
+            }
+            if ch == '\\' {
+                let next = self.read_char();
+                if next == '"' {
+                    res.push('\"');
+                } else {
+                    res.push(ch);
+                    res.push(next);
+                }
+            } else {
+                res.push(ch);
+            }
+        }
+
+        res
+    }
+
     fn read_char(&mut self) -> char {
         self.input.next().unwrap_or('\0')
     }
@@ -86,6 +111,7 @@ impl<'a> Iterator for Lexer<'a> {
             '*' => Token::Asterisk,
             '<' => Token::Lt,
             '>' => Token::Gt,
+            '"' => Token::String(self.read_string()),
             '\0' => return None,
             ch => {
                 if Self::is_valid_id_char(&ch) {
@@ -127,6 +153,9 @@ mod test {
         
         10 == 10;
         10 != 9;
+        "foo bar";
+        "foobar";
+        "foo\"bar";
         "#;
         let expected = vec![
             Token::Let,
@@ -201,6 +230,12 @@ mod test {
             Token::Int("10".to_string()),
             Token::NotEq,
             Token::Int("9".to_string()),
+            Token::Semicolon,
+            Token::String("foo bar".to_string()),
+            Token::Semicolon,
+            Token::String("foobar".to_string()),
+            Token::Semicolon,
+            Token::String("foo\"bar".to_string()),
             Token::Semicolon,
         ];
 

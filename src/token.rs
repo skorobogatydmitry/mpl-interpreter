@@ -14,6 +14,7 @@ pub enum TokenKind {
 
     Identifier,
     Int,
+    String,
 
     Assign,
     Plus,

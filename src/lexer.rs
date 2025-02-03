@@ -52,6 +52,7 @@ impl Lexer {
             '*' => Token::new(literal, TokenKind::Asterisk),
             '<' => Token::new(literal, TokenKind::Lt),
             '>' => Token::new(literal, TokenKind::Gt),
+            '"' => Token::new(self.read_string(), TokenKind::String),
             '\0' => Token::new("".to_string(), TokenKind::EOF),
             _ => {
                 let mut kind = TokenKind::Illegal;
@@ -111,6 +112,16 @@ impl Lexer {
             self.input[self.read_pos]
         }
     }
+
+    fn read_string(&mut self) -> String {
+        let pos = self.pos + 1;
+        self.read_char();
+        while self.ch != '"' && self.ch != '\0' {
+            self.read_char();
+        }
+        let string_slice = &self.input[pos..self.pos];
+        string_slice.into_iter().collect()
+    }
 }
 
 #[cfg(test)]
@@ -140,6 +151,8 @@ mod test {
         
         10 == 10;
         10 != 9;
+        "foobar";
+        "foo bar";
         "#;
         let expected = vec![
             Token::new("let".to_string(), TokenKind::Let),
@@ -214,6 +227,10 @@ mod test {
             Token::new("10".to_string(), TokenKind::Int),
             Token::new("!=".to_string(), TokenKind::NotEq),
             Token::new("9".to_string(), TokenKind::Int),
+            Token::new(";".to_string(), TokenKind::Semicolon),
+            Token::new("foobar".to_string(), TokenKind::String),
+            Token::new(";".to_string(), TokenKind::Semicolon),
+            Token::new("foo bar".to_string(), TokenKind::String),
             Token::new(";".to_string(), TokenKind::Semicolon),
             Token::new("".to_string(), TokenKind::EOF),
         ];

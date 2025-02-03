@@ -6,6 +6,7 @@ pub enum Token {
 
     Identifier(String),
     Int(String),
+    String(String),
 
     Assign,
     Plus,

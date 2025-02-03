@@ -182,21 +182,16 @@ impl Evaluator {
     }
 
     fn eval_infix_expr(&self, operator: String, left: Object, right: Object) -> Object {
-        match (left, right) {
-            (Object::Integer(left), Object::Integer(right)) => {
+        match (left, right, operator.as_str()) {
+            (Object::Integer(left), Object::Integer(right), _) => {
                 self.eval_integer_infix_expr(left, right, operator)
             }
-            (Object::Boolean(l), Object::Boolean(r)) => match operator.as_str() {
-                "==" => Object::get_bool(l == r),
-                "!=" => Object::get_bool(l != r),
-                _ => Object::Error(format!(
-                    "unknown operation {} {} {}",
-                    Object::get_bool(true).type_str(),
-                    operator,
-                    Object::get_bool(true).type_str(),
-                )),
-            },
-            (left, right) => Object::Error(format!(
+            (Object::Boolean(l), Object::Boolean(r), "==") => Object::get_bool(l == r),
+            (Object::Boolean(l), Object::Boolean(r), "!=") => Object::get_bool(l != r),
+            (Object::String(left), Object::String(right), "+") => {
+                Object::String(format!("{}{}", left, right))
+            }
+            (left, right, op) => Object::Error(format!(
                 "type mismatch: {} {} {}",
                 left.type_str(),
                 operator,

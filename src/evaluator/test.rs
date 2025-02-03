@@ -76,6 +76,18 @@ fn test_string_eval() {
 }
 
 #[test]
+fn test_string_concatenation() {
+    let input = r#""hello" + " " + "world""#;
+
+    let evaluated = Evaluator::new().eval_program(make_program(input));
+
+    match evaluated {
+        Object::String(val) => assert_eq!("hello world", val),
+        etc => panic!("expected string obj, got {etc:?}"),
+    };
+}
+
+#[test]
 fn test_eval_bang_operator() {
     let tests = vec![
         ("!true", false),
@@ -133,11 +145,11 @@ fn test_eval_errors() {
         ("5 + true;", "type mismatch: INTEGER + BOOLEAN"),
         ("5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"),
         ("-true", "unknown operator: -BOOLEAN"),
-        ("true + false;", "unknown operation BOOLEAN + BOOLEAN"),
-        ("5; true + false; 5", "unknown operation BOOLEAN + BOOLEAN"),
+        ("true + false;", "type mismatch: BOOLEAN + BOOLEAN"),
+        ("5; true + false; 5", "type mismatch: BOOLEAN + BOOLEAN"),
         (
             "if (10 > 1) { true + false; }",
-            "unknown operation BOOLEAN + BOOLEAN",
+            "type mismatch: BOOLEAN + BOOLEAN",
         ),
         (
             "if (10 > 1) {
@@ -147,10 +159,11 @@ fn test_eval_errors() {
             return 1;
             }
             ",
-            "unknown operation BOOLEAN + BOOLEAN",
+            "type mismatch: BOOLEAN + BOOLEAN",
         ),
         ("foobar", "unknown identifier 'foobar'"),
-        // ("10 ! 5", "unknown operation ! for INTEGER"),
+        (r#""hello" - "world""#, "type mismatch: STRING - STRING"),
+        // TODO: ("10 ! 5", "unknown operation ! for INTEGER"),
     ];
 
     for (input, expected) in tests {

@@ -11,6 +11,7 @@ const NULL: Object = Object::Null;
 pub enum Object {
     Integer(i64), // integer type of MPL uses i64 under the hood
     Boolean(bool),
+    String(String),
     ReturnValue(Box<Object>),
     Fn(Function),
     Error(String),
@@ -25,6 +26,7 @@ impl Object {
             Self::ReturnValue(_) => "RETURN_VALUE",
             Self::Error(_) => "ERROR",
             Self::Fn(_) => "FUNCTION",
+            Self::String(_) => "STRING",
             Self::Null => "NULL",
         }
     }
@@ -58,6 +60,7 @@ impl Display for Object {
             Self::Integer(val) => write!(f, "{}", val),
             Self::Boolean(val) => write!(f, "{}", val),
             Self::ReturnValue(val) => write!(f, "{}", val),
+            Self::String(val) => write!(f, "{}", val),
             Self::Error(val) => write!(f, "{}", val),
             Self::Fn(val) => {
                 let params = val

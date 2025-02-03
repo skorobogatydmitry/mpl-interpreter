@@ -105,6 +105,7 @@ impl Evaluator {
                         }
                     }
                 }
+                Expression::StringExp(data) => Object::String(data.value),
             }
         } else {
             Object::get_null()

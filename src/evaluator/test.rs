@@ -65,6 +65,17 @@ fn test_eval_boolean_expression() {
 }
 
 #[test]
+fn test_string_eval() {
+    let input = r#""hello world!""#;
+    let evaluated = Evaluator::new().eval_program(make_program(input));
+
+    match evaluated {
+        Object::String(val) => assert_eq!("hello world!", val),
+        etc => panic!("expected string obj, got {etc:?}"),
+    };
+}
+
+#[test]
 fn test_eval_bang_operator() {
     let tests = vec![
         ("!true", false),

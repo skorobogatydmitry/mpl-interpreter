@@ -12,10 +12,11 @@ pub enum Statement {
 #[derive(Debug, PartialEq)]
 pub enum Expression {
     Identifier(String), // actual identifier's name
-    Integer(i64),
     Prefix(expression::Prefix),
     Infix(expression::Infix),
+    Integer(i64),
     Boolean(bool),
+    String(String),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),

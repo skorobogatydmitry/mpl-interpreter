@@ -73,6 +73,7 @@ impl Parser {
                 (TokenKind::Lparen, Self::parse_groupped_expression),
                 (TokenKind::If, Self::parse_if_expression),
                 (TokenKind::Function, Self::parse_fn_expression),
+                (TokenKind::String, Self::parse_string_literal),
             ]),
             infix_parse_fns: HashMap::from([
                 (
@@ -339,6 +340,13 @@ impl Parser {
             token,
             body,
             parameters,
+        }))
+    }
+
+    fn parse_string_literal(&mut self) -> Option<Expression> {
+        Some(Expression::StringExp(StringLiteral {
+            token: self.cur_token.clone(),
+            value: self.cur_token.literal.clone(),
         }))
     }
 

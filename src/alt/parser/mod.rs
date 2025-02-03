@@ -159,6 +159,7 @@ impl<'a> Parser<'a> {
                 }),
             Some(Token::True) => Ok(Expression::Boolean(true)),
             Some(Token::False) => Ok(Expression::Boolean(false)),
+            Some(Token::String(val)) => Ok(Expression::String(val)),
             Some(Token::Lparen) => self
                 .parse_groupped_expression()
                 .map_err(|e| format!("(groupped expression): {e}")),

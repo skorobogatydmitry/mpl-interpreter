@@ -157,6 +157,22 @@ fn test_literal_expression() {
 }
 
 #[test]
+fn test_string_expression() {
+    let input = r#"
+        "hello world"
+    "#;
+
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            expression: Some(Expression::StringExp(string_literal)),
+            ..
+        }) => assert_eq!("hello world", string_literal.value),
+        etc => panic!("not a string expression statement, but {etc:?}"),
+    }
+}
+
+#[test]
 fn test_parse_prefix_expression_int() {
     // tuple of (sample, operator, operand)
     let code_samples_n_results = vec![("!5", "!", 5), ("-15", "-", 15)];

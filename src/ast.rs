@@ -24,6 +24,7 @@ pub enum Expression {
     If(IfExpression),
     Fn(Function),
     Call(Call),
+    StringExp(StringLiteral),
 }
 
 pub struct Program {
@@ -125,6 +126,13 @@ pub struct Call {
     pub arguments: Vec<Expression>,
 }
 
+// string as an expression: e.g. "some"
+#[derive(Debug, Clone)]
+pub struct StringLiteral {
+    pub token: Token,
+    pub value: String,
+}
+
 impl Node for Statement {
     fn token_literal(&self) -> String {
         match self {
@@ -155,6 +163,7 @@ impl Node for Expression {
             Self::If(data) => data.token_literal(),
             Self::Fn(data) => data.token_literal(),
             Self::Call(data) => data.token_literal(),
+            Self::StringExp(data) => data.token_literal(),
         }
     }
     fn print(&self) -> String {
@@ -167,6 +176,7 @@ impl Node for Expression {
             Self::If(data) => data.print(),
             Self::Fn(data) => data.print(),
             Self::Call(data) => data.print(),
+            Self::StringExp(data) => data.print(),
         }
     }
 }
@@ -351,6 +361,16 @@ impl Node for Call {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
+    }
+}
+
+impl Node for StringLiteral {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn print(&self) -> String {
+        self.token_literal()
     }
 }
 

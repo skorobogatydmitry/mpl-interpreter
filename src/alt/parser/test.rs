@@ -166,13 +166,31 @@ fn test_empty_expression_statement() {
 }
 
 #[test]
-fn test_literal_expression() {
+fn test_integer_expression() {
     let inputs = vec!["5", "5;"];
 
     for input in inputs {
         let mut program = make_program_from(input, Some(1));
         match program.statements.pop().unwrap() {
             Statement::Expression(Expression::Integer(integer)) => assert_eq!(5, integer),
+            stmt => panic!("statement is no an int expression but {stmt:?}"),
+        }
+    }
+}
+
+#[test]
+fn test_string_expression() {
+    let input = r#"
+    "hello \"world\"";
+    "hello" "world";
+    "#;
+
+    let expected_strings = vec!["hello \"world\"", "hello", "world"];
+
+    let program = make_program_from(input, Some(3));
+    for (stmt, expected_string) in program.statements.into_iter().zip(expected_strings) {
+        match stmt {
+            Statement::Expression(Expression::String(val)) => assert_eq!(expected_string, val),
             stmt => panic!("statement is no an int expression but {stmt:?}"),
         }
     }

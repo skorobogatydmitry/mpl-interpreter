@@ -352,6 +352,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_call(&mut self, function: Expression) -> Result<Expression, String> {
+        self.lexer.next(); // skip (
         Ok(Expression::Call(Call {
             function: Box::new(function),
             arguments: self.parse_fn_call_args()?,

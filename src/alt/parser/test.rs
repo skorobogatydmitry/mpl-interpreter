@@ -535,7 +535,21 @@ fn test_fn_params_parsing() {
 }
 
 #[test]
-fn test_call_fn() {
+fn test_function_call_without_args() {
+    let input = "add()";
+    let mut program = make_program_from(input, Some(1));
+
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Call(mut call_expr)) => {
+            assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
+            assert!(call_expr.arguments.is_empty());
+        }
+        some => panic!("not an expression but {some:?}"),
+    }
+}
+
+#[test]
+fn test_function_call() {
     let input = "add(1, 2 * 3, 4 + 5)";
 
     let mut program = make_program_from(input, Some(1));

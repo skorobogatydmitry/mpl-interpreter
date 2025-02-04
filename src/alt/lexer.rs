@@ -244,7 +244,7 @@ mod test {
         for (token, (idx, expected_token)) in lexer.zip(expected.into_iter().enumerate()) {
             assert_eq!(
                 expected_token, token,
-                "incorrect token at {}: {:?} VS {:?}",
+                "incorrect token at {}: {} VS {}",
                 idx, expected_token, token
             );
         }

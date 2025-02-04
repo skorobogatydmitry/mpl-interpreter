@@ -16,10 +16,10 @@ fn test_let_statement() {
             assert_eq!("x", data.name);
             match &data.value {
                 Expression::Integer(val) => assert_eq!(5, *val),
-                _ => panic!("value is not an integer but {:?}", data.value),
+                _ => panic!("value is not an integer but {}", data.value),
             }
         }
-        some => panic!("not a let statement but {some:?}"),
+        some => panic!("not a let statement but {some}"),
     }
 
     match &program.statements[1] {
@@ -27,10 +27,10 @@ fn test_let_statement() {
             assert_eq!("y", data.name);
             match &data.value {
                 Expression::Boolean(val) => assert_eq!(true, *val),
-                _ => panic!("value is not a bool but {:?}", data.value),
+                _ => panic!("value is not a bool but {}", data.value),
             }
         }
-        some => panic!("not a let statement but {some:?}"),
+        some => panic!("not a let statement but {some}"),
     }
 
     match &program.statements[2] {
@@ -38,10 +38,10 @@ fn test_let_statement() {
             assert_eq!("foo_bar", data.name);
             match &data.value {
                 Expression::Identifier(idf) => assert_eq!("y", idf),
-                _ => panic!("value is not an identifier but {:?}", data.value),
+                _ => panic!("value is not an identifier but {}", data.value),
             }
         }
-        some => panic!("not a let statement but {some:?}"),
+        some => panic!("not a let statement but {some}"),
     }
 }
 
@@ -51,44 +51,44 @@ fn test_parsing_errors() {
         ("let", "no tokens after `let'"),
         (
             "let ! = 2;",
-            "error parsing let statement: expected identifier, got Bang",
+            "error parsing let statement: expected identifier, got `!'",
         ),
         ("let x", "no tokens after `let x', expected `='"),
         (
             "let x = !=1;",
-            "wrong expression for the let statement: no prefix parsing fn for token kind NotEq",
+            "wrong expression for the let statement: no prefix parsing fn for token `!='",
         ),
         (
             "let x ! 2;",
-            "error parsing let statement: expected `=', got Bang",
+            "error parsing let statement: expected `=', got `!'",
         ),
         (
             "9999999999999999999999999",
-            "error parsing expression: cannot parse 9999999999999999999999999 as integer(i64): ParseIntError { kind: PosOverflow }",
+            "error parsing expression: cannot parse 9999999999999999999999999 as integer(i64): number too large to fit in target type",
         ),
-        ("5 6", "error parsing expression: unknown infix operator: Int(\"6\"), left expr: Integer(5)"),
-        ("(!=2)", "error parsing expression: (groupped expression): inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
-        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)', got Some(Semicolon)"),
+        ("5 6", "error parsing expression: unknown infix operator: `6', left expr: `5'"),
+        ("(!=2)", "error parsing expression: (groupped expression): inner expression parsing failed: no prefix parsing fn for token `!='"),
+        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)', got `;'"),
         ("let x = 5; if", "error parsing expression: (if expression): no token after `if' to parse"),
-        ("if 2 { 5 };", "error parsing expression: (if expression): expected ( for if condition, got Int(\"2\")"),
-        ("if (!=1)", "error parsing expression: (if expression): cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
-        ("if (true) !=", "error parsing expression: (if expression): invalid syntax: expected `{', got Some(NotEq)"),
-        ("if (true) { !=5 }", "error parsing expression: (if expression): error parsing consequence: error parsing expression: no prefix parsing fn for token kind NotEq"),
-        ("if (true) { 5; } else { !=5; }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token kind NotEq"),
-        ("if (true) { 5; } else !=", "error parsing expression: (if expression): expected `else {', got `else Some(NotEq)'"),
+        ("if 2 { 5 };", "error parsing expression: (if expression): expected `(' for if condition, got `2'"),
+        ("if (!=1)", "error parsing expression: (if expression): cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token `!='"),
+        ("if (true) !=", "error parsing expression: (if expression): invalid syntax: expected `{', got `!='"),
+        ("if (true) { !=5 }", "error parsing expression: (if expression): error parsing consequence: error parsing expression: no prefix parsing fn for token `!='"),
+        ("if (true) { 5; } else { !=5; }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token `!='"),
+        ("if (true) { 5; } else !=", "error parsing expression: (if expression): expected `else {', got `else !='"),
         ("let x = 5; fn", "error parsing expression: (fn expression): no token after `fn'"),
         ("let x = 5; fn==", "error parsing expression: (fn expression): no `(' after `fn'"),
         ("fn(a,b)", "error parsing expression: (fn expression): no tokens after fn's parameters fn(a,b)"),
         ("fn(a) ==", "error parsing expression: (fn expression): no `{' after fn(a)"),
-        ("fn(a|b)", "error parsing expression: (fn expression): wrong parameters separator: expected `,' or `)', got Some(Illegal(\"|\"))"),
-        ("fn(a,b,c, { 5 }", "error parsing expression: (fn expression): incorrect parameters declaration: missing `,' or `)'"),
+        ("fn(a|b)", "error parsing expression: (fn expression): wrong parameters separator: expected `,' or `)', got `illegal token (|)'"),
+        ("fn(a,b,c, { 5 }", "error parsing expression: (fn expression): incorrect parameters declaration: not an identifier or missing `,' or `)'"),
         ("fn() { 5;", "error parsing expression: (fn expression): block is not closed with `}'"),
-        ("fn() { let x != 5; }", "error parsing expression: (fn expression): error parsing let statement: expected `=', got NotEq"),
-        ("!=5", "error parsing expression: no prefix parsing fn for token kind NotEq"),
+        ("fn() { let x != 5; }", "error parsing expression: (fn expression): error parsing let statement: expected `=', got `!='"),
+        ("!=5", "error parsing expression: no prefix parsing fn for token `!='"),
         ("!", "error parsing expression: no token to parse an expression"),
-        ("add(a + 5;b)", "error parsing expression: (infix expression): wrong fn call args separator: Semicolon"),
-        ("add(1,2,3 + 4, !=5", "error parsing expression: (infix expression): error parsing fn call args: no prefix parsing fn for token kind NotEq (already parsed: [Integer(1), Integer(2), Infix(Infix { operator: Plus, left: Integer(3), right: Integer(4) })])"),
-        ("add(1,2,3", "error parsing expression: (infix expression): found fn call args [Integer(1), Integer(2), Integer(3)] but no `)' seen"),
+        ("add(a + 5;b)", "error parsing expression: (infix expression): wrong fn call args separator: `;'"),
+        ("add(1,2,3 + 4, !=5", "error parsing expression: (infix expression): error parsing fn call args: no prefix parsing fn for token `!=' (already parsed: `1, 2, 3 + 4')"),
+        ("add(1,2,3", "error parsing expression: (infix expression): found fn call args `1, 2, 3' but no `)' seen"),
     ];
 
     for (input, expected) in inputs {
@@ -110,20 +110,20 @@ fn test_block_statement() {
             assert_eq!(1, block.statements.len());
             match block.statements.pop().unwrap() {
                 Statement::Expression(Expression::Integer(6)) => (),
-                etc => panic!("not an integer 6, but {etc:?}"),
+                etc => panic!("not an integer 6, but {etc}"),
             }
         }
-        etc => panic!("not a block statement but {etc:?}"),
+        etc => panic!("not a block statement but {etc}"),
     }
     match program.statements.pop().unwrap() {
         Statement::Block(mut block) => {
             assert_eq!(1, block.statements.len());
             match block.statements.pop().unwrap() {
                 Statement::Expression(Expression::Integer(5)) => (),
-                etc => panic!("not an integer 5, but {etc:?}"),
+                etc => panic!("not an integer 5, but {etc}"),
             }
         }
-        etc => panic!("not a block statement but {etc:?}"),
+        etc => panic!("not a block statement but {etc}"),
     }
 }
 
@@ -142,7 +142,7 @@ fn test_return_statement() {
         Statement::Return(stmt) => {
             assert_eq!(Expression::Empty, stmt.ret_expr);
         }
-        some => panic!("not a return statement but {some:?}"),
+        some => panic!("not a return statement but {some}"),
     }
 
     match program.statements.pop().unwrap() {
@@ -156,21 +156,21 @@ fn test_return_statement() {
                 );
             }
         }
-        some => panic!("not a return statement but {some:?}"),
+        some => panic!("not a return statement but {some}"),
     }
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
             assert_literal_expr(stmt.ret_expr, Expectation::Int(10));
         }
-        some => panic!("not a return statement but {some:?}"),
+        some => panic!("not a return statement but {some}"),
     }
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
             assert_literal_expr(stmt.ret_expr, Expectation::Int(1));
         }
-        some => panic!("not a return statement but {some:?}"),
+        some => panic!("not a return statement but {some}"),
     }
 }
 
@@ -181,7 +181,7 @@ fn test_indentifier_expression() {
         let mut program = make_program_from(input, Some(1));
         match program.statements.pop().unwrap() {
             Statement::Expression(Expression::Identifier(idf)) => assert_eq!("foobar", idf),
-            expr => panic!("expected identifier expression statement: {expr:?}"),
+            expr => panic!("expected identifier expression statement: {expr}"),
         }
     }
 }
@@ -201,7 +201,7 @@ fn test_integer_expression() {
         let mut program = make_program_from(input, Some(1));
         match program.statements.pop().unwrap() {
             Statement::Expression(Expression::Integer(integer)) => assert_eq!(5, integer),
-            stmt => panic!("statement is no an int expression but {stmt:?}"),
+            stmt => panic!("statement is no an int expression but {stmt}"),
         }
     }
 }
@@ -219,7 +219,7 @@ fn test_string_expression() {
     for (stmt, expected_string) in program.statements.into_iter().zip(expected_strings) {
         match stmt {
             Statement::Expression(Expression::String(val)) => assert_eq!(expected_string, val),
-            stmt => panic!("statement is no an int expression but {stmt:?}"),
+            stmt => panic!("statement is no an int expression but {stmt}"),
         }
     }
 }
@@ -242,7 +242,7 @@ fn test_parse_prefix_expression() {
                 assert_eq!(op, expr.operator);
                 assert_literal_expr(*expr.operand, operand);
             }
-            stmt => panic!("not a statement expression: {stmt:?}"),
+            stmt => panic!("not a statement expression: {stmt}"),
         }
     }
 }
@@ -316,7 +316,7 @@ fn test_parse_infix_expression_int() {
             Statement::Expression(Expression::Infix(expr)) => {
                 assert_infix_expression(expr, left_op, operator, right_op)
             }
-            stmt => panic!("not an infix statement expression: {stmt:?}"),
+            stmt => panic!("not an infix statement expression: {stmt}"),
         }
     }
 }
@@ -401,7 +401,7 @@ fn test_boolean_expression() {
     for (expected, stmt) in expected_values.into_iter().zip(program.statements) {
         match stmt {
             Statement::Expression(Expression::Boolean(bool)) => assert_eq!(expected, bool),
-            stmt => panic!("expected a boolean expression, got {stmt:?}"),
+            stmt => panic!("expected a boolean expression, got {stmt}"),
         }
     }
 }
@@ -429,12 +429,12 @@ fn test_if_expression() {
                 Statement::Expression(cons) => {
                     assert_literal_expr(cons, Expectation::String("x".to_string()))
                 }
-                some => panic!("consequence is not an expression, but {some:?}"),
+                some => panic!("consequence is not an expression, but {some}"),
             }
 
             assert!(if_expr.alternative.is_none());
         }
-        etc => panic!("not an if expression in the statement but {etc:?}"),
+        etc => panic!("not an if expression in the statement but {etc}"),
     }
 }
 
@@ -461,17 +461,17 @@ fn test_if_else_expression() {
                 Statement::Expression(cons) => {
                     assert_literal_expr(cons, Expectation::String("x".to_string()))
                 }
-                some => panic!("consequence is not an expression, but {some:?}"),
+                some => panic!("consequence is not an expression, but {some}"),
             }
 
             match if_expr.alternative.unwrap().statements.pop().unwrap() {
                 Statement::Expression(alt) => {
                     assert_literal_expr(alt, Expectation::String("y".to_string()))
                 }
-                some => panic!("consequence is not an expression, but {some:?}"),
+                some => panic!("consequence is not an expression, but {some}"),
             }
         }
-        some => panic!("not an if expression but {some:?}"),
+        some => panic!("not an if expression but {some}"),
     }
 }
 
@@ -500,10 +500,10 @@ fn test_function_expression() {
                     Token::Plus,
                     Expectation::String("y".to_string()),
                 ),
-                some => panic!("not an infix expression but {some:?}"),
+                some => panic!("not an infix expression but {some}"),
             }
         }
-        some => panic!("not a fn expression but {some:?}"),
+        some => panic!("not a fn expression but {some}"),
     }
 }
 
@@ -529,7 +529,7 @@ fn test_fn_params_parsing() {
                         .collect::<Vec<&str>>()
                 );
             }
-            some => panic!("not a fn expression but {some:?}"),
+            some => panic!("not a fn expression but {some}"),
         }
     }
 }
@@ -540,11 +540,11 @@ fn test_function_call_without_args() {
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
-        Statement::Expression(Expression::Call(mut call_expr)) => {
+        Statement::Expression(Expression::Call(call_expr)) => {
             assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
             assert!(call_expr.arguments.is_empty());
         }
-        some => panic!("not an expression but {some:?}"),
+        some => panic!("not an expression but {some}"),
     }
 }
 
@@ -575,7 +575,7 @@ fn test_function_call() {
             }
             assert_literal_expr(call_expr.arguments.pop().unwrap(), Expectation::Int(1));
         }
-        some => panic!("not an expression but {some:?}"),
+        some => panic!("not an expression but {some}"),
     }
 }
 
@@ -591,7 +591,7 @@ fn assert_literal_expr(expr: Expression, expected: Expectation) {
         (Expression::Boolean(data), Expectation::Bool(val)) => assert_eq!(val, data),
         (Expression::Integer(data), Expectation::Int(val)) => assert_eq!(val, data),
         (Expression::Identifier(data), Expectation::String(val)) => assert_eq!(val, data),
-        (expr, expected) => panic!("cannot compare {expr:?} and {expected:?}"),
+        (expr, expected) => panic!("cannot compare {expr} and {expected:?}"),
     }
 }
 
@@ -613,7 +613,7 @@ fn make_program_from(input: &str, statements_count: Option<usize>) -> Program {
     let program = parser.parse_program();
     assert!(
         parser.error.is_empty(),
-        "expected no parsing errors, got {:?}",
+        "expected no parsing errors, got {}",
         parser.error
     );
     assert!(program.is_ok());

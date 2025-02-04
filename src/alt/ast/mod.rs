@@ -1,7 +1,9 @@
+use std::fmt::Display;
+
 pub mod expression;
 pub mod statement;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Let(statement::Let),
     Return(statement::Return),
@@ -9,7 +11,7 @@ pub enum Statement {
     Block(statement::Block),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(String), // actual identifier's name
     Prefix(expression::Prefix),
@@ -26,4 +28,32 @@ pub enum Expression {
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub statements: Vec<Statement>,
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Identifier(data) => write!(f, "{}", data),
+            Expression::Prefix(data) => write!(f, "{}{}", data.operand, data.operator),
+            Expression::Infix(data) => write!(f, "{} {} {}", data.left, data.operator, data.right),
+            Expression::Integer(data) => write!(f, "{}", data),
+            Expression::Boolean(data) => write!(f, "{}", data),
+            Expression::String(data) => write!(f, "{}", data),
+            Expression::If(data) => write!(f, "{}", data),
+            Expression::Fn(data) => write!(f, "{}", data),
+            Expression::Call(data) => write!(f, "{}", data),
+            Expression::Empty => write!(f, ""),
+        }
+    }
+}
+
+impl Display for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Statement::Let(val) => write!(f, "{};", val),
+            Statement::Return(val) => write!(f, "{};", val),
+            Statement::Expression(val) => write!(f, "{};", val),
+            Statement::Block(val) => write!(f, "{};", val),
+        }
+    }
 }

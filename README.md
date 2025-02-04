@@ -71,3 +71,8 @@ Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.
 The alt module carries my attempts to make the code code better. Original code has tons of copies of everything, doesn't care if a struct needs to own the value, passes values between helpers carelessly.
 
 The "original" version of the code isn't 1:1 with the course too though.
+
+
+Gotchas:
+- the `Clone` trait is needed to save object's dublicates to the environment while preserving original ones
+- the `Display` trait is needed to show program results to the end user. In particular, a function, which contains blocks which may contain expressions which may contain tokens, etc, etc

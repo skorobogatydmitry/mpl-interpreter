@@ -191,7 +191,7 @@ impl Evaluator {
             (Object::String(left), Object::String(right), "+") => {
                 Object::String(format!("{}{}", left, right))
             }
-            (left, right, op) => Object::Error(format!(
+            (left, right, _op) => Object::Error(format!(
                 "type mismatch: {} {} {}",
                 left.type_str(),
                 operator,

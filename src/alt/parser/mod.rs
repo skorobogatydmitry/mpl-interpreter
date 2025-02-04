@@ -352,7 +352,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_call(&mut self, function: Expression) -> Result<Expression, String> {
-        self.lexer.next(); // skip (
         Ok(Expression::Call(Call {
             function: Box::new(function),
             arguments: self.parse_fn_call_args()?,
@@ -362,22 +361,30 @@ impl<'a> Parser<'a> {
     fn parse_fn_call_args(&mut self) -> Result<Vec<Expression>, String> {
         let mut args = vec![];
 
-        while let Some(token) = self.lexer.next() {
-            match token {
-                Token::Rparen => return Ok(args),
-                Token::Comma | Token::Lparen => (), // usual separators
-                etc => return Err(format!("wrong fn call args separator: {etc:?}")),
+        match self.lexer.next() {
+            Some(Token::Lparen) => {
+                if let Some(Token::Rparen) = self.lexer.peek() {
+                    self.lexer.next();
+                    return Ok(args);
+                }
+                loop {
+                    let expr = self
+                        .parse_expression(PrecedenceLevel::Lowest)
+                        .map_err(|e| {
+                            format!("error parsing fn call args: {e} (already parsed: {args:?})")
+                        })?;
+                    args.push(expr);
+
+                    match self.lexer.next() {
+                        Some(Token::Comma) => (),               // usual separator
+                        Some(Token::Rparen) => return Ok(args), // end of args
+                        Some(etc) => return Err(format!("wrong fn call args separator: {etc:?}")),
+                        None => return Err(format!("found fn call args {args:?} but no `)' seen")),
+                    };
+                }
             }
-
-            let expr = self
-                .parse_expression(PrecedenceLevel::Lowest)
-                .map_err(|e| {
-                    format!("error parsing fn call args: {e} (already parsed: {args:?})")
-                })?;
-            args.push(expr);
+            etc => Err(format!("missing `(' after function name, found {etc:?}")),
         }
-
-        Err(format!("found fn call args {args:?} but no `)' seen"))
     }
 
     pub fn skip_semicolon(&mut self) {

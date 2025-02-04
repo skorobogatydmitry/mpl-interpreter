@@ -15,7 +15,7 @@ fn test_let_statement() {
         Statement::Let(data) => {
             assert_eq!("x", data.name);
             match &data.value {
-                Some(Expression::Integer(val)) => assert_eq!(5, *val),
+                Expression::Integer(val) => assert_eq!(5, *val),
                 _ => panic!("value is not an integer but {:?}", data.value),
             }
         }
@@ -26,7 +26,7 @@ fn test_let_statement() {
         Statement::Let(data) => {
             assert_eq!("y", data.name);
             match &data.value {
-                Some(Expression::Boolean(val)) => assert_eq!(true, *val),
+                Expression::Boolean(val) => assert_eq!(true, *val),
                 _ => panic!("value is not a bool but {:?}", data.value),
             }
         }
@@ -37,7 +37,7 @@ fn test_let_statement() {
         Statement::Let(data) => {
             assert_eq!("foo_bar", data.name);
             match &data.value {
-                Some(Expression::Identifier(idf)) => assert_eq!("y", idf),
+                Expression::Identifier(idf) => assert_eq!("y", idf),
                 _ => panic!("value is not an identifier but {:?}", data.value),
             }
         }
@@ -66,15 +66,16 @@ fn test_parsing_errors() {
             "9999999999999999999999999",
             "error parsing expression: cannot parse 9999999999999999999999999 as integer(i64): ParseIntError { kind: PosOverflow }",
         ),
+        ("5 6", "error parsing expression: unknown infix operator: Int(\"6\"), left expr: Integer(5)"),
         ("(!=2)", "error parsing expression: (groupped expression): inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
-        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)`, got Some(Semicolon)"),
+        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)', got Some(Semicolon)"),
         ("let x = 5; if", "error parsing expression: (if expression): no token after `if' to parse"),
         ("if 2 { 5 };", "error parsing expression: (if expression): expected ( for if condition, got Int(\"2\")"),
         ("if (!=1)", "error parsing expression: (if expression): cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token kind NotEq"),
         ("if (true) !=", "error parsing expression: (if expression): invalid syntax: expected `{', got Some(NotEq)"),
         ("if (true) { !=5 }", "error parsing expression: (if expression): error parsing consequence: error parsing expression: no prefix parsing fn for token kind NotEq"),
-        ("if (true) { 5 } else { !=5 }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token kind NotEq"),
-        ("if (true) { 5 } else !=", "error parsing expression: (if expression): expected `else {', got `else Some(NotEq)'"),
+        ("if (true) { 5; } else { !=5; }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token kind NotEq"),
+        ("if (true) { 5; } else !=", "error parsing expression: (if expression): expected `else {', got `else Some(NotEq)'"),
         ("let x = 5; fn", "error parsing expression: (fn expression): no token after `fn'"),
         ("let x = 5; fn==", "error parsing expression: (fn expression): no `(' after `fn'"),
         ("fn(a,b)", "error parsing expression: (fn expression): no tokens after fn's parameters fn(a,b)"),
@@ -85,7 +86,7 @@ fn test_parsing_errors() {
         ("fn() { let x != 5; }", "error parsing expression: (fn expression): error parsing let statement: expected `=', got NotEq"),
         ("!=5", "error parsing expression: no prefix parsing fn for token kind NotEq"),
         ("!", "error parsing expression: no token to parse an expression"),
-        ("add(a + 5|b)", "error parsing expression: (infix expression): wrong fn call args separator: Illegal(\"|\")"),
+        ("add(a + 5;b)", "error parsing expression: (infix expression): wrong fn call args separator: Semicolon"),
         ("add(1,2,3 + 4, !=5", "error parsing expression: (infix expression): error parsing fn call args: no prefix parsing fn for token kind NotEq (already parsed: [Integer(1), Integer(2), Infix(Infix { operator: Plus, left: Integer(3), right: Integer(4) })])"),
         ("add(1,2,3", "error parsing expression: (infix expression): found fn call args [Integer(1), Integer(2), Integer(3)] but no `)' seen"),
     ];
@@ -101,23 +102,52 @@ fn test_parsing_errors() {
 }
 
 #[test]
+fn test_block_statement() {
+    let input = "{ 5; } { 6; }";
+    let mut program = make_program_from(input, Some(2));
+    match program.statements.pop().unwrap() {
+        Statement::Block(mut block) => {
+            assert_eq!(1, block.statements.len());
+            match block.statements.pop().unwrap() {
+                Statement::Expression(Expression::Integer(6)) => (),
+                etc => panic!("not an integer 6, but {etc:?}"),
+            }
+        }
+        etc => panic!("not a block statement but {etc:?}"),
+    }
+    match program.statements.pop().unwrap() {
+        Statement::Block(mut block) => {
+            assert_eq!(1, block.statements.len());
+            match block.statements.pop().unwrap() {
+                Statement::Expression(Expression::Integer(5)) => (),
+                etc => panic!("not an integer 5, but {etc:?}"),
+            }
+        }
+        etc => panic!("not a block statement but {etc:?}"),
+    }
+}
+
+#[test]
 fn test_return_statement() {
     let input = r#"
             return 1;
             return 10;
             return x + t;
+            return;
             "#;
 
-    // let input = r#"
-    //         return x + t;
-    //         "#;
-
-    let mut program = make_program_from(input, Some(3));
+    let mut program = make_program_from(input, Some(4));
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert!(stmt.ret_expr.is_some());
-            if let Expression::Infix(expr) = stmt.ret_expr.unwrap() {
+            assert_eq!(Expression::Empty, stmt.ret_expr);
+        }
+        some => panic!("not a return statement but {some:?}"),
+    }
+
+    match program.statements.pop().unwrap() {
+        Statement::Return(stmt) => {
+            if let Expression::Infix(expr) = stmt.ret_expr {
                 assert_infix_expression(
                     expr,
                     Expectation::String("x".to_string()),
@@ -131,16 +161,14 @@ fn test_return_statement() {
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert!(stmt.ret_expr.is_some());
-            assert_literal_expr(stmt.ret_expr.unwrap(), Expectation::Int(10));
+            assert_literal_expr(stmt.ret_expr, Expectation::Int(10));
         }
         some => panic!("not a return statement but {some:?}"),
     }
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert!(stmt.ret_expr.is_some());
-            assert_literal_expr(stmt.ret_expr.unwrap(), Expectation::Int(1));
+            assert_literal_expr(stmt.ret_expr, Expectation::Int(1));
         }
         some => panic!("not a return statement but {some:?}"),
     }
@@ -182,7 +210,7 @@ fn test_integer_expression() {
 fn test_string_expression() {
     let input = r#"
     "hello \"world\"";
-    "hello" "world";
+    "hello"; "world";
     "#;
 
     let expected_strings = vec!["hello \"world\"", "hello", "world"];
@@ -381,7 +409,7 @@ fn test_boolean_expression() {
 #[test]
 fn test_if_expression() {
     let input = r#"
-    if (x < y) { x }
+    if (x < y) { x; }
     "#;
 
     let mut program = make_program_from(input, Some(1));
@@ -413,7 +441,7 @@ fn test_if_expression() {
 #[test]
 fn test_if_else_expression() {
     let input = r#"
-    if (x < y) { x } else { y }
+    if (x < y) { x; } else { y; }
     "#;
 
     let mut program = make_program_from(input, Some(1));
@@ -449,7 +477,7 @@ fn test_if_else_expression() {
 
 #[test]
 fn test_function_expression() {
-    let input = "fn(x, y) { x + y }";
+    let input = "fn(x, y) { x + y; }";
     let mut program = make_program_from(input, Some(1));
 
     match program.statements.pop().unwrap() {
@@ -484,7 +512,7 @@ fn test_fn_params_parsing() {
     let test_samples = vec![
         ("fn() {};", vec![]),
         ("fn(x) {};", vec!["x"]),
-        ("fn(x,y, z) { x + 5 };", vec!["x", "y", "z"]),
+        ("fn(x,y, z) { x + 5; };", vec!["x", "y", "z"]),
     ];
 
     for (input, expectation) in test_samples {

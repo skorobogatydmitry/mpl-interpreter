@@ -67,14 +67,9 @@ impl<'a> Parser<'a> {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         let to_call = match self.lexer.peek() {
-            Some(Token::Return) => {
-                self.lexer.next(); // skip the return
-                Self::parse_return_statement
-            }
-            Some(Token::Let) => {
-                self.lexer.next(); // skip the let
-                Self::parse_let_statement
-            }
+            Some(Token::Return) => Self::parse_return_statement,
+            Some(Token::Let) => Self::parse_let_statement,
+            Some(Token::Lbrace) => Self::parse_block_as_statement,
             Some(_) => Self::parse_expression_statement,
             None => return None,
         };
@@ -89,14 +84,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> Result<Statement, String> {
+        self.lexer.next(); // skip the return
         let ret_expr = self.parse_expression(PrecedenceLevel::Lowest)?;
         self.skip_semicolon();
-        Ok(Statement::Return(Return {
-            ret_expr: Some(ret_expr),
-        }))
+        Ok(Statement::Return(Return { ret_expr }))
     }
 
     fn parse_let_statement(&mut self) -> Result<Statement, String> {
+        self.lexer.next(); // skip the let
         let name = self
             .lexer
             .next()
@@ -120,10 +115,7 @@ impl<'a> Parser<'a> {
                         .parse_expression(PrecedenceLevel::Lowest)
                         .map_err(|e| format!("wrong expression for the let statement: {e}"))?;
                     self.skip_semicolon();
-                    Ok(Statement::Let(Let {
-                        name,
-                        value: Some(value),
-                    }))
+                    Ok(Statement::Let(Let { name, value }))
                 } else {
                     Err(format!(
                         "error parsing let statement: expected `=', got {token}"
@@ -175,9 +167,6 @@ impl<'a> Parser<'a> {
         }?;
 
         while let Some(token) = self.lexer.peek() {
-            if precedence >= PrecedenceLevel::from_token(&token) {
-                return Ok(left_expr);
-            }
             let infix_fn = match token {
                 Token::Lparen => Self::parse_fn_call,
                 Token::Plus
@@ -188,8 +177,16 @@ impl<'a> Parser<'a> {
                 | Token::NotEq
                 | Token::Lt
                 | Token::Gt => Self::parse_infix_expression,
-                _ => return Ok(left_expr),
+                Token::Semicolon | Token::Rparen | Token::Comma => return Ok(left_expr),
+                token => {
+                    return Err(format!(
+                        "unknown infix operator: {token}, left expr: {left_expr:?}",
+                    ))
+                }
             };
+            if precedence >= PrecedenceLevel::from_token(&token) {
+                return Ok(left_expr);
+            }
             // there's a function to apply
             left_expr =
                 infix_fn(self, left_expr).map_err(|e| format!("(infix expression): {e}"))?;
@@ -205,7 +202,7 @@ impl<'a> Parser<'a> {
             .map_err(|e| format!("inner expression parsing failed: {e}"))?;
         match self.lexer.next() {
             Some(Token::Rparen) => Ok(expression),
-            etc => Err(format!("expected `)`, got {etc:?}")),
+            etc => Err(format!("expected `)', got {etc:?}")),
         }
     }
 
@@ -243,7 +240,7 @@ impl<'a> Parser<'a> {
                 token => return Err(format!("expected `else {{', got `else {token:?}'")),
             }
         } else {
-            // there's no else
+            // there's no `else'
             None
         };
 
@@ -308,6 +305,11 @@ impl<'a> Parser<'a> {
         Err(format!(
             "incorrect parameters declaration: missing `,' or `)'"
         ))
+    }
+
+    fn parse_block_as_statement(&mut self) -> Result<Statement, String> {
+        self.lexer.next();
+        Ok(Statement::Block(self.parse_block_statement()?))
     }
 
     fn parse_block_statement(&mut self) -> Result<Block, String> {

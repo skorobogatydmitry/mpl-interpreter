@@ -14,7 +14,7 @@ pub struct Let {
 /// `return <expression>;` or just `return;`
 #[derive(Debug, PartialEq)]
 pub struct Return {
-    pub ret_expr: Option<Expression>,
+    pub ret_expr: Expression,
 }
 
 /// { 5; 6; 7; add(1,2,x); }

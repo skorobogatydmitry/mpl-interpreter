@@ -313,15 +313,14 @@ fn test_operator_precedence() {
             "add(a + b + c * d / f + g)",
             "add((((a + b) + ((c * d) / f)) + g))",
         ),
-        // TODO: figure the issue
-        // (
-        //     "a * [1, 2, 3, 4][b * c] * d",
-        //     "((a * ([1, 2, 3, 4][(b * c)])) * d)",
-        // ),
-        // (
-        //     "add(a * b[2], b[1], 2 * [1, 2][1])",
-        //     "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
-        // ),
+        (
+            "a * [1, 2, 3, 4][b * c] * d",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+        ),
+        (
+            "add(a * b[2], b[1], 2 * [1, 2][1])",
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+        ),
     ];
 
     for (input, expectation) in code_samples_n_results {
@@ -563,6 +562,33 @@ fn test_parse_array() {
             arr.elements.pop().unwrap().assert_literal_expr(1);
         }
         etc => panic!("expected an array expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_index() {
+    let input = "myArray[1+2]";
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            token: _,
+            expression: Some(Expression::Index(index)),
+        }) => {
+            assert_eq!(
+                Token::new("[".to_string(), TokenKind::Lbracket),
+                index.token
+            );
+            match *index.operand {
+                Expression::Identifier(data) => assert_eq!("myArray", data.value),
+                etc => panic!("not an identifier but {etc:?}"),
+            }
+
+            match *index.index {
+                Expression::Infix(infix) => infix.assert_infix_expression(1, "+", 2),
+                etc => panic!("not an infix expression but {etc:?}"),
+            }
+        }
+        etc => panic!("expected an index expression statement, got {etc:?}"),
     }
 }
 

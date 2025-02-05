@@ -26,6 +26,7 @@ pub enum Expression {
     Call(Call),
     StringExp(StringLiteral),
     Array(Array),
+    Index(Index),
 }
 
 pub struct Program {
@@ -140,6 +141,13 @@ pub struct Array {
     pub elements: Vec<Expression>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Index {
+    pub token: Token,
+    pub operand: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
 impl Node for Statement {
     fn token_literal(&self) -> String {
         match self {
@@ -172,6 +180,7 @@ impl Node for Expression {
             Self::Call(data) => data.token_literal(),
             Self::StringExp(data) => data.token_literal(),
             Self::Array(data) => data.token_literal(),
+            Self::Index(data) => data.token_literal(),
         }
     }
     fn print(&self) -> String {
@@ -186,6 +195,7 @@ impl Node for Expression {
             Self::Call(data) => data.print(),
             Self::StringExp(data) => data.print(),
             Self::Array(data) => data.print(),
+            Self::Index(data) => data.print(),
         }
     }
 }
@@ -396,6 +406,16 @@ impl Node for Array {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
+    }
+}
+
+impl Node for Index {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+
+    fn print(&self) -> String {
+        format!("({}[{}])", self.operand.print(), self.index.print())
     }
 }
 

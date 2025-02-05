@@ -47,6 +47,16 @@ pub struct Call {
     pub arguments: Vec<Expression>,
 }
 
+/// indexing expression
+/// # examples
+/// some[1]
+/// [1,2,3][1+2]
+#[derive(Debug, PartialEq, Clone)]
+pub struct Index {
+    pub operand: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
 impl Display for If {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = format!("if ({}) {}", self.condition, self.consequence);
@@ -84,5 +94,11 @@ impl Display for Call {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
+    }
+}
+
+impl Display for Index {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}[{}])", self.operand, self.index)
     }
 }

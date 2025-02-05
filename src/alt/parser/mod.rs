@@ -3,7 +3,7 @@ use std::iter::Peekable;
 use crate::alt::{ast::*, lexer::Lexer, token::Token};
 
 use super::ast::{
-    expression::{Call, Function, If, Infix, Prefix},
+    expression::{Call, Function, If, Index, Infix, Prefix},
     statement::{Block, Let, Return},
 };
 
@@ -19,6 +19,7 @@ enum PrecedenceLevel {
     Product = 4,     // *,/
     Prefix = 5,      // -,+,!
     Call = 6,        // add(1,2)
+    Index = 7,       // x[i]
 }
 
 impl PrecedenceLevel {
@@ -33,6 +34,7 @@ impl PrecedenceLevel {
             Token::Slash => PrecedenceLevel::Product,
             Token::Asterisk => PrecedenceLevel::Product,
             Token::Lparen => PrecedenceLevel::Call,
+            Token::Lbracket => PrecedenceLevel::Index,
             _ => PrecedenceLevel::Lowest,
         }
     }
@@ -172,6 +174,7 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.lexer.peek() {
             let infix_fn = match token {
                 Token::Lparen => Self::parse_fn_call,
+                Token::Lbracket => Self::parse_index_expression,
                 Token::Plus
                 | Token::Minus
                 | Token::Asterisk
@@ -373,6 +376,25 @@ impl<'a> Parser<'a> {
                 .parse_expressions_list(Token::Rparen)
                 .map_err(|e| format!("(fn call) {e}"))?,
         }))
+    }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        self.lexer.next(); // skip the (
+        let result = Expression::Index(Index {
+            operand: Box::new(left),
+            index: Box::new(
+                self.parse_expression(PrecedenceLevel::Lowest)
+                    .map_err(|e| format!("(index) {e}"))?,
+            ),
+        });
+
+        if let Some(t) = self.lexer.next() {
+            if t != Token::Rbracket {
+                return Err(format!("no closing `]' for index expression `{result}'"));
+            }
+        }
+
+        Ok(result)
     }
 
     fn parse_expressions_list(&mut self, end: Token) -> Result<Vec<Expression>, String> {

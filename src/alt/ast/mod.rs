@@ -20,6 +20,7 @@ pub enum Expression {
     Boolean(bool),
     String(String),
     Array(Vec<Expression>),
+    Index(expression::Index),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),
@@ -48,6 +49,7 @@ impl Display for Expression {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
+            Expression::Index(data) => write!(f, "{}", data),
             Expression::If(data) => write!(f, "{}", data),
             Expression::Fn(data) => write!(f, "{}", data),
             Expression::Call(data) => write!(f, "{}", data),

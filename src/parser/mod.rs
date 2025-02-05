@@ -23,6 +23,7 @@ enum PrecedenceLevel {
     Product = 4,     // *,/
     Prefix = 5,      // -,+,!
     Call = 6,        // add(1,2)
+    Index = 7,       // some[1]
 }
 
 impl PrecedenceLevel {
@@ -37,6 +38,7 @@ impl PrecedenceLevel {
             TokenKind::Slash => PrecedenceLevel::Product,
             TokenKind::Asterisk => PrecedenceLevel::Product,
             TokenKind::Lparen => PrecedenceLevel::Call,
+            TokenKind::Lbracket => PrecedenceLevel::Index,
             _ => PrecedenceLevel::Lowest,
         }
     }
@@ -89,6 +91,7 @@ impl Parser {
                 (TokenKind::Lt, Self::parse_infix_expression),
                 (TokenKind::Gt, Self::parse_infix_expression),
                 (TokenKind::Lparen, Self::parse_fn_call), // ( is considered to be an infix operator between fn name and its params
+                (TokenKind::Lbracket, Self::parse_index_expression),
             ]),
         }
     }
@@ -354,7 +357,7 @@ impl Parser {
     fn parse_array_literal(&mut self) -> Option<Expression> {
         Some(Expression::Array(Array {
             token: self.cur_token.clone(),
-            elements: self.parse_expression_list(TokenKind::Rbracket),
+            elements: self.parse_expressions_list(TokenKind::Rbracket),
         }))
     }
 
@@ -428,11 +431,32 @@ impl Parser {
         Some(Expression::Call(Call {
             token: self.cur_token.clone(),
             function: Box::new(function),
-            arguments: self.parse_expression_list(TokenKind::Rparen),
+            arguments: self.parse_expressions_list(TokenKind::Rparen),
         }))
     }
 
-    fn parse_expression_list(&mut self, end: TokenKind) -> Vec<Expression> {
+    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+        self.next_token(); // move to the [
+        let token = self.cur_token.clone();
+        self.next_token(); // move to the start of expression
+
+        let exp = Index {
+            token,
+            operand: Box::new(left),
+            index: Box::new(
+                self.parse_expression(PrecedenceLevel::Lowest)
+                    .expect("error parsing index expression"),
+            ),
+        };
+
+        if !self.expect_peek(TokenKind::Rbracket) {
+            return None;
+        }
+
+        Some(Expression::Index(exp))
+    }
+
+    fn parse_expressions_list(&mut self, end: TokenKind) -> Vec<Expression> {
         let mut args = vec![];
         if self.peek_token.kind == end {
             self.next_token();

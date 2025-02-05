@@ -89,6 +89,7 @@ fn test_parsing_errors() {
         ("add(a + 5;b)", "(expression) (infix expression) (fn call) wrong expressions separator in a list: `;'"),
         ("add(1,2,3 + 4, !=5", "(expression) (infix expression) (fn call) error parsing list of expressions: no prefix parsing fn for token `!=' (already parsed: `1, 2, 3 + 4')"),
         ("add(1,2,3", "(expression) (infix expression) (fn call) found list of expressions `1, 2, 3' but no `)' seen"),
+        ("some[1+2+3;", "(expression) (infix expression) no closing `]' for index expression `(some[1 + 2 + 3])'"),
     ];
 
     for (input, expected) in inputs {
@@ -367,15 +368,16 @@ fn test_operator_precedence() {
             "add((((a + b) + ((c * d) / f)) + g))",
             1,
         ),
-        // TODO: vectors and idexes are not supported yet
-        // (
-        //     "a * [1, 2, 3, 4][b * c] * d",
-        //     "((a * ([1, 2, 3, 4][(b * c)])) * d)",
-        // ),
-        // (
-        //     "add(a * b[2], b[1], 2 * [1, 2][1])",
-        //     "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
-        // ),
+        (
+            "a * [1, 2, 3, 4][b * c] * d",
+            "((a * ([1, 2, 3, 4][(b * c)])) * d)",
+            1,
+        ),
+        (
+            "add(a * b[2], b[1], 2 * [1, 2][1])",
+            "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+            1,
+        ),
     ];
 
     for (input, expectation, statements_count) in code_samples_n_results {
@@ -591,6 +593,28 @@ fn test_parse_array() {
             assert_literal_expr(arr.pop().unwrap(), Expectation::Int(1));
         }
         etc => panic!("expected an array expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_index() {
+    let input = "myArray[1+2]";
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Index(index)) => {
+            match *index.operand {
+                Expression::Identifier(value) => assert_eq!("myArray", value),
+                etc => panic!("not an identifier but {etc:?}"),
+            }
+
+            assert_infix_expression(
+                *index.index,
+                Expectation::Int(1),
+                Token::Plus,
+                Expectation::Int(2),
+            );
+        }
+        etc => panic!("expected an index expression statement, got {etc:?}"),
     }
 }
 

@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         /* the whole expression has the lowest precedence */
         self.parse_expression(PrecedenceLevel::Lowest)
-            .map_err(|e| format!("error parsing expression: {e}"))
+            .map_err(|e| format!("(expression) {e}"))
             .map(|expr| {
                 self.skip_semicolon();
                 Statement::Expression(expr)
@@ -154,13 +154,16 @@ impl<'a> Parser<'a> {
             Some(Token::String(val)) => Ok(Expression::String(val)),
             Some(Token::Lparen) => self
                 .parse_groupped_expression()
-                .map_err(|e| format!("(groupped expression): {e}")),
+                .map_err(|e| format!("(groupped expression) {e}")),
+            Some(Token::Lbracket) => self
+                .parse_array()
+                .map_err(|e| format!("(array expression) {e}")),
             Some(Token::If) => self
                 .parse_if_expression()
-                .map_err(|e| format!("(if expression): {e}")),
+                .map_err(|e| format!("(if expression) {e}")),
             Some(Token::Function) => self
                 .parse_fn_expression()
-                .map_err(|e| format!("(fn expression): {e}")),
+                .map_err(|e| format!("(fn expression) {e}")),
             Some(Token::Semicolon) => Ok(Expression::Empty),
             Some(etc) => Err(format!("no prefix parsing fn for token `{etc}'")),
             None => Err(format!("no token to parse an expression")),
@@ -177,7 +180,9 @@ impl<'a> Parser<'a> {
                 | Token::NotEq
                 | Token::Lt
                 | Token::Gt => Self::parse_infix_expression,
-                Token::Semicolon | Token::Rparen | Token::Comma => return Ok(left_expr),
+                Token::Semicolon | Token::Rparen | Token::Rbracket | Token::Comma => {
+                    return Ok(left_expr)
+                }
                 token => {
                     return Err(format!(
                         "unknown infix operator: `{token}', left expr: `{left_expr}'",
@@ -188,8 +193,7 @@ impl<'a> Parser<'a> {
                 return Ok(left_expr);
             }
             // there's a function to apply
-            left_expr =
-                infix_fn(self, left_expr).map_err(|e| format!("(infix expression): {e}"))?;
+            left_expr = infix_fn(self, left_expr).map_err(|e| format!("(infix expression) {e}"))?;
         }
 
         // reached the end of program
@@ -205,6 +209,12 @@ impl<'a> Parser<'a> {
             Some(etc) => Err(format!("expected `)', got `{etc}'")),
             None => Err(format!("no `)' at the end of `{expression}'")),
         }
+    }
+    fn parse_array(&mut self) -> Result<Expression, String> {
+        Ok(Expression::Array(
+            self.parse_expressions_list(Token::Rbracket)
+                .map_err(|e| format!("(array) {e}"))?,
+        ))
     }
 
     fn parse_if_expression(&mut self) -> Result<Expression, String> {
@@ -356,53 +366,53 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_fn_call(&mut self, function: Expression) -> Result<Expression, String> {
+        self.lexer.next(); // skip the (
         Ok(Expression::Call(Call {
             function: Box::new(function),
-            arguments: self.parse_fn_call_args()?,
+            arguments: self
+                .parse_expressions_list(Token::Rparen)
+                .map_err(|e| format!("(fn call) {e}"))?,
         }))
     }
 
-    fn parse_fn_call_args(&mut self) -> Result<Vec<Expression>, String> {
+    fn parse_expressions_list(&mut self, end: Token) -> Result<Vec<Expression>, String> {
         let mut args = vec![];
 
-        match self.lexer.next() {
-            Some(Token::Lparen) => {
-                if let Some(Token::Rparen) = self.lexer.peek() {
-                    self.lexer.next();
-                    return Ok(args);
-                }
-                loop {
-                    let expr = self
-                        .parse_expression(PrecedenceLevel::Lowest)
-                        .map_err(|e| {
-                            format!(
-                                "error parsing fn call args: {e} (already parsed: `{}')",
-                                args.iter()
-                                    .map(|a| format!("{}", a))
-                                    .collect::<Vec<String>>()
-                                    .join(", ")
-                            )
-                        })?;
-                    args.push(expr);
-
-                    match self.lexer.next() {
-                        Some(Token::Comma) => (),               // usual separator
-                        Some(Token::Rparen) => return Ok(args), // end of args
-                        Some(etc) => return Err(format!("wrong fn call args separator: `{etc}'")),
-                        None => {
-                            return Err(format!(
-                                "found fn call args `{}' but no `)' seen",
-                                args.iter()
-                                    .map(|a| format!("{}", a))
-                                    .collect::<Vec<String>>()
-                                    .join(", ")
-                            ))
-                        }
-                    };
-                }
+        match self.lexer.peek() {
+            Some(t) if *t == end => {
+                self.lexer.next();
+                return Ok(args);
             }
-            Some(etc) => Err(format!("missing `(' after function name, found `{etc}'",)),
-            None => Err(format!("no `(' after function name")),
+            _ => (),
+        };
+        loop {
+            let expr = self
+                .parse_expression(PrecedenceLevel::Lowest)
+                .map_err(|e| {
+                    format!(
+                        "error parsing list of expressions: {e} (already parsed: `{}')",
+                        args.iter()
+                            .map(|a| format!("{}", a))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    )
+                })?;
+            args.push(expr);
+
+            match self.lexer.next() {
+                Some(Token::Comma) => (),               // usual separator
+                Some(t) if t == end => return Ok(args), // end of args
+                Some(etc) => return Err(format!("wrong expressions separator in a list: `{etc}'")),
+                None => {
+                    return Err(format!(
+                        "found list of expressions `{}' but no `{end}' seen",
+                        args.iter()
+                            .map(|a| format!("{}", a))
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    ))
+                }
+            };
         }
     }
 

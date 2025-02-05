@@ -19,6 +19,7 @@ pub enum Expression {
     Integer(i64),
     Boolean(bool),
     String(String),
+    Array(Vec<Expression>),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),
@@ -39,6 +40,14 @@ impl Display for Expression {
             Expression::Integer(data) => write!(f, "{}", data),
             Expression::Boolean(data) => write!(f, "{}", data),
             Expression::String(data) => write!(f, "{}", data),
+            Expression::Array(data) => write!(
+                f,
+                "{}",
+                data.iter()
+                    .map(|el| format!("{}", el))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Expression::If(data) => write!(f, "{}", data),
             Expression::Fn(data) => write!(f, "{}", data),
             Expression::Call(data) => write!(f, "{}", data),

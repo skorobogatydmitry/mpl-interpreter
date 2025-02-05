@@ -541,6 +541,31 @@ fn test_call_fn() {
     }
 }
 
+#[test]
+fn test_parse_array() {
+    let input = "[1, 2*2, 3+3]";
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            token: _,
+            expression: Some(Expression::Array(mut arr)),
+        }) => {
+            assert_eq!(Token::new("[".to_string(), TokenKind::Lbracket), arr.token);
+            assert_eq!(3, arr.elements.len());
+            match arr.elements.pop().unwrap() {
+                Expression::Infix(infix) => infix.assert_infix_expression(3, "+", 3),
+                etc => panic!("not an infix expression but {etc:?}"),
+            }
+            match arr.elements.pop().unwrap() {
+                Expression::Infix(infix) => infix.assert_infix_expression(2, "*", 2),
+                etc => panic!("not an infix expression but {etc:?}"),
+            }
+            arr.elements.pop().unwrap().assert_literal_expr(1);
+        }
+        etc => panic!("expected an array expression statement, got {etc:?}"),
+    }
+}
+
 trait Assertable<Y> {
     fn assert_literal_expr(&self, _expected: Y) {}
     fn assert_infix_expression(&self, _left: Y, _operator: &str, _right: Y) {

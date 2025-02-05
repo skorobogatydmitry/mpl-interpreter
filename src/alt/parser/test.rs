@@ -64,31 +64,31 @@ fn test_parsing_errors() {
         ),
         (
             "9999999999999999999999999",
-            "error parsing expression: cannot parse 9999999999999999999999999 as integer(i64): number too large to fit in target type",
+            "(expression) cannot parse 9999999999999999999999999 as integer(i64): number too large to fit in target type",
         ),
-        ("5 6", "error parsing expression: unknown infix operator: `6', left expr: `5'"),
-        ("(!=2)", "error parsing expression: (groupped expression): inner expression parsing failed: no prefix parsing fn for token `!='"),
-        ("(!0; let x = 5;", "error parsing expression: (groupped expression): expected `)', got `;'"),
-        ("let x = 5; if", "error parsing expression: (if expression): no token after `if' to parse"),
-        ("if 2 { 5 };", "error parsing expression: (if expression): expected `(' for if condition, got `2'"),
-        ("if (!=1)", "error parsing expression: (if expression): cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token `!='"),
-        ("if (true) !=", "error parsing expression: (if expression): invalid syntax: expected `{', got `!='"),
-        ("if (true) { !=5 }", "error parsing expression: (if expression): error parsing consequence: error parsing expression: no prefix parsing fn for token `!='"),
-        ("if (true) { 5; } else { !=5; }", "error parsing expression: (if expression): else's block: error parsing expression: no prefix parsing fn for token `!='"),
-        ("if (true) { 5; } else !=", "error parsing expression: (if expression): expected `else {', got `else !='"),
-        ("let x = 5; fn", "error parsing expression: (fn expression): no token after `fn'"),
-        ("let x = 5; fn==", "error parsing expression: (fn expression): no `(' after `fn'"),
-        ("fn(a,b)", "error parsing expression: (fn expression): no tokens after fn's parameters fn(a,b)"),
-        ("fn(a) ==", "error parsing expression: (fn expression): no `{' after fn(a)"),
-        ("fn(a|b)", "error parsing expression: (fn expression): wrong parameters separator: expected `,' or `)', got `illegal token (|)'"),
-        ("fn(a,b,c, { 5 }", "error parsing expression: (fn expression): incorrect parameters declaration: not an identifier or missing `,' or `)'"),
-        ("fn() { 5;", "error parsing expression: (fn expression): block is not closed with `}'"),
-        ("fn() { let x != 5; }", "error parsing expression: (fn expression): error parsing let statement: expected `=', got `!='"),
-        ("!=5", "error parsing expression: no prefix parsing fn for token `!='"),
-        ("!", "error parsing expression: no token to parse an expression"),
-        ("add(a + 5;b)", "error parsing expression: (infix expression): wrong fn call args separator: `;'"),
-        ("add(1,2,3 + 4, !=5", "error parsing expression: (infix expression): error parsing fn call args: no prefix parsing fn for token `!=' (already parsed: `1, 2, 3 + 4')"),
-        ("add(1,2,3", "error parsing expression: (infix expression): found fn call args `1, 2, 3' but no `)' seen"),
+        ("5 6", "(expression) unknown infix operator: `6', left expr: `5'"),
+        ("(!=2)", "(expression) (groupped expression) inner expression parsing failed: no prefix parsing fn for token `!='"),
+        ("(!0; let x = 5;", "(expression) (groupped expression) expected `)', got `;'"),
+        ("let x = 5; if", "(expression) (if expression) no token after `if' to parse"),
+        ("if 2 { 5 };", "(expression) (if expression) expected `(' for if condition, got `2'"),
+        ("if (!=1)", "(expression) (if expression) cannot parse condition of the if expression: inner expression parsing failed: no prefix parsing fn for token `!='"),
+        ("if (true) !=", "(expression) (if expression) invalid syntax: expected `{', got `!='"),
+        ("if (true) { !=5 }", "(expression) (if expression) error parsing consequence: (expression) no prefix parsing fn for token `!='"),
+        ("if (true) { 5; } else { !=5; }", "(expression) (if expression) else's block: (expression) no prefix parsing fn for token `!='"),
+        ("if (true) { 5; } else !=", "(expression) (if expression) expected `else {', got `else !='"),
+        ("let x = 5; fn", "(expression) (fn expression) no token after `fn'"),
+        ("let x = 5; fn==", "(expression) (fn expression) no `(' after `fn'"),
+        ("fn(a,b)", "(expression) (fn expression) no tokens after fn's parameters fn(a,b)"),
+        ("fn(a) ==", "(expression) (fn expression) no `{' after fn(a)"),
+        ("fn(a|b)", "(expression) (fn expression) wrong parameters separator: expected `,' or `)', got `illegal token (|)'"),
+        ("fn(a,b,c, { 5 }", "(expression) (fn expression) incorrect parameters declaration: not an identifier or missing `,' or `)'"),
+        ("fn() { 5;", "(expression) (fn expression) block is not closed with `}'"),
+        ("fn() { let x != 5; }", "(expression) (fn expression) error parsing let statement: expected `=', got `!='"),
+        ("!=5", "(expression) no prefix parsing fn for token `!='"),
+        ("!", "(expression) no token to parse an expression"),
+        ("add(a + 5;b)", "(expression) (infix expression) (fn call) wrong expressions separator in a list: `;'"),
+        ("add(1,2,3 + 4, !=5", "(expression) (infix expression) (fn call) error parsing list of expressions: no prefix parsing fn for token `!=' (already parsed: `1, 2, 3 + 4')"),
+        ("add(1,2,3", "(expression) (infix expression) (fn call) found list of expressions `1, 2, 3' but no `)' seen"),
     ];
 
     for (input, expected) in inputs {
@@ -147,14 +147,12 @@ fn test_return_statement() {
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            if let Expression::Infix(expr) = stmt.ret_expr {
-                assert_infix_expression(
-                    expr,
-                    Expectation::String("x".to_string()),
-                    Token::Plus,
-                    Expectation::String("t".to_string()),
-                );
-            }
+            assert_infix_expression(
+                stmt.ret_expr,
+                Expectation::String("x".to_string()),
+                Token::Plus,
+                Expectation::String("t".to_string()),
+            );
         }
         some => panic!("not a return statement but {some}"),
     }
@@ -313,10 +311,10 @@ fn test_parse_infix_expression_int() {
         let mut program = make_program_from(input, Some(1));
 
         match program.statements.pop().unwrap() {
-            Statement::Expression(Expression::Infix(expr)) => {
+            Statement::Expression(expr) => {
                 assert_infix_expression(expr, left_op, operator, right_op)
             }
-            stmt => panic!("not an infix statement expression: {stmt}"),
+            stmt => panic!("not an expression statement: {stmt}"),
         }
     }
 }
@@ -416,14 +414,12 @@ fn test_if_expression() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::If(mut if_expr)) => {
-            if let Expression::Infix(expr) = *if_expr.condition {
-                assert_infix_expression(
-                    expr,
-                    Expectation::String("x".to_string()),
-                    Token::Lt,
-                    Expectation::String("y".to_string()),
-                );
-            }
+            assert_infix_expression(
+                *if_expr.condition,
+                Expectation::String("x".to_string()),
+                Token::Lt,
+                Expectation::String("y".to_string()),
+            );
             assert_eq!(1, if_expr.consequence.statements.len());
             match if_expr.consequence.statements.pop().unwrap() {
                 Statement::Expression(cons) => {
@@ -448,14 +444,12 @@ fn test_if_else_expression() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::If(mut if_expr)) => {
-            if let Expression::Infix(expr) = *if_expr.condition {
-                assert_infix_expression(
-                    expr,
-                    Expectation::String("x".to_string()),
-                    Token::Lt,
-                    Expectation::String("y".to_string()),
-                );
-            }
+            assert_infix_expression(
+                *if_expr.condition,
+                Expectation::String("x".to_string()),
+                Token::Lt,
+                Expectation::String("y".to_string()),
+            );
             assert_eq!(1, if_expr.consequence.statements.len());
             match if_expr.consequence.statements.pop().unwrap() {
                 Statement::Expression(cons) => {
@@ -494,16 +488,16 @@ fn test_function_expression() {
             assert_eq!(1, fn_expr.body.statements.len());
 
             match fn_expr.body.statements.pop().unwrap() {
-                Statement::Expression(Expression::Infix(expr)) => assert_infix_expression(
+                Statement::Expression(expr) => assert_infix_expression(
                     expr,
                     Expectation::String("x".to_string()),
                     Token::Plus,
                     Expectation::String("y".to_string()),
                 ),
-                some => panic!("not an infix expression but {some}"),
+                etc => panic!("not an expression but {etc}"),
             }
         }
-        some => panic!("not a fn expression but {some}"),
+        etc => panic!("not a fn expression but {etc}"),
     }
 }
 
@@ -557,25 +551,46 @@ fn test_function_call() {
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::Call(mut call_expr)) => {
             assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
-            if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
-                assert_infix_expression(
-                    expr,
-                    Expectation::Int(4),
-                    Token::Plus,
-                    Expectation::Int(5),
-                );
-            }
-            if let Expression::Infix(expr) = call_expr.arguments.pop().unwrap() {
-                assert_infix_expression(
-                    expr,
-                    Expectation::Int(2),
-                    Token::Asterisk,
-                    Expectation::Int(3),
-                );
-            }
+            assert_infix_expression(
+                call_expr.arguments.pop().unwrap(),
+                Expectation::Int(4),
+                Token::Plus,
+                Expectation::Int(5),
+            );
+            assert_infix_expression(
+                call_expr.arguments.pop().unwrap(),
+                Expectation::Int(2),
+                Token::Asterisk,
+                Expectation::Int(3),
+            );
             assert_literal_expr(call_expr.arguments.pop().unwrap(), Expectation::Int(1));
         }
         some => panic!("not an expression but {some}"),
+    }
+}
+
+#[test]
+fn test_parse_array() {
+    let input = "[1, 2*2, 3+3]";
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Array(mut arr)) => {
+            assert_eq!(3, arr.len());
+            assert_infix_expression(
+                arr.pop().unwrap(),
+                Expectation::Int(3),
+                Token::Plus,
+                Expectation::Int(3),
+            );
+            assert_infix_expression(
+                arr.pop().unwrap(),
+                Expectation::Int(2),
+                Token::Asterisk,
+                Expectation::Int(2),
+            );
+            assert_literal_expr(arr.pop().unwrap(), Expectation::Int(1));
+        }
+        etc => panic!("expected an array expression statement, got {etc:?}"),
     }
 }
 
@@ -596,14 +611,19 @@ fn assert_literal_expr(expr: Expression, expected: Expectation) {
 }
 
 fn assert_infix_expression(
-    expr: expression::Infix,
+    expr: Expression,
     left: Expectation,
     operator: Token,
     right: Expectation,
 ) {
-    assert_literal_expr(*expr.left, left);
-    assert_eq!(operator, expr.operator);
-    assert_literal_expr(*expr.right, right);
+    match expr {
+        Expression::Infix(expr) => {
+            assert_literal_expr(*expr.left, left);
+            assert_eq!(operator, expr.operator);
+            assert_literal_expr(*expr.right, right);
+        }
+        etc => panic!("expected infix expression, got {etc}"),
+    }
 }
 
 fn make_program_from(input: &str, statements_count: Option<usize>) -> Program {

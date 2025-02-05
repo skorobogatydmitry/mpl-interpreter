@@ -74,6 +74,7 @@ impl Parser {
                 (TokenKind::If, Self::parse_if_expression),
                 (TokenKind::Function, Self::parse_fn_expression),
                 (TokenKind::String, Self::parse_string_literal),
+                (TokenKind::Lbracket, Self::parse_array_literal),
             ]),
             infix_parse_fns: HashMap::from([
                 (
@@ -350,6 +351,13 @@ impl Parser {
         }))
     }
 
+    fn parse_array_literal(&mut self) -> Option<Expression> {
+        Some(Expression::Array(Array {
+            token: self.cur_token.clone(),
+            elements: self.parse_expression_list(TokenKind::Rbracket),
+        }))
+    }
+
     fn parse_fn_params(&mut self) -> Option<Vec<Identifier>> {
         if self.peek_token.kind == TokenKind::Rparen {
             self.next_token();
@@ -420,17 +428,15 @@ impl Parser {
         Some(Expression::Call(Call {
             token: self.cur_token.clone(),
             function: Box::new(function),
-            arguments: self
-                .parse_fn_call_args()
-                .expect("unable to parse arguments"),
+            arguments: self.parse_expression_list(TokenKind::Rparen),
         }))
     }
 
-    fn parse_fn_call_args(&mut self) -> Option<Vec<Expression>> {
+    fn parse_expression_list(&mut self, end: TokenKind) -> Vec<Expression> {
         let mut args = vec![];
-        if self.peek_token.kind == TokenKind::Rparen {
+        if self.peek_token.kind == end {
             self.next_token();
-            return Some(args);
+            return args;
         }
 
         self.next_token();
@@ -447,10 +453,10 @@ impl Parser {
             );
         }
 
-        if !self.expect_peek(TokenKind::Rparen) {
-            return None;
+        if !self.expect_peek(end) {
+            return vec![];
         }
 
-        Some(args)
+        args
     }
 }

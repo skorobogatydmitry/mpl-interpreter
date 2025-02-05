@@ -54,7 +54,7 @@ impl Evaluator {
             }
             Statement::Let(let_stmt) => {
                 let val = self.eval_expression(let_stmt.value)?;
-                self.env.get_mut().set(let_stmt.name, val.clone());
+                self.env.get_mut().set(let_stmt.name, val.clone())?;
                 Ok(val)
             }
             // TODO: swap env
@@ -109,7 +109,7 @@ impl Evaluator {
                 }
                 // zip the args into fn's env
                 for (param_name, param_val) in func.params.iter().zip(args) {
-                    func.env.set(param_name.clone(), param_val);
+                    func.env.set(param_name.clone(), param_val)?;
                 }
 
                 let orig_env = self.env.replace(func.env);
@@ -118,6 +118,7 @@ impl Evaluator {
 
                 result
             }
+            Object::BuiltinFn(func) => (func.f)(args),
             _ => Err(format!("not a function but {}", func.type_str())),
         }
     }

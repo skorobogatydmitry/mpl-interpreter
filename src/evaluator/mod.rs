@@ -134,6 +134,7 @@ impl Evaluator {
                     _ => result,
                 }
             }
+            Object::BuiltinFunction(func) => func(args),
             _ => Object::Error(format!("not a function but {}", func.type_str())),
         }
     }

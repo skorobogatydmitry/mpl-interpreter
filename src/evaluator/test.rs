@@ -242,9 +242,38 @@ fn test_eval_closures() {
     assert_integer_object(Evaluator::new().eval_program(make_program(input)), 5);
 }
 
+#[test]
+fn test_builtin_function_len() {
+    let tests: Vec<(&str, _)> = vec![
+        (r#"len("")"#, Expectation::Int(0i64)),
+        (r#"len("asd")"#, Expectation::Int(3i64)),
+        (
+            r#"len(1)"#,
+            Expectation::Error("wrong argument for `len': INTEGER".to_string()),
+        ),
+        (
+            r#"len("one", "two")"#,
+            Expectation::Error("len expects one argument, got 2".to_string()),
+        ),
+    ];
+
+    for (input, expectation) in tests {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("should not be an error");
+        let object = Evaluator::new().eval_program(program);
+        match (expectation, object) {
+            (Expectation::Error(expected), Object::Error(msg)) => assert_eq!(expected, msg),
+            (Expectation::Int(expected), Object::Integer(val)) => assert_eq!(expected, val),
+            (exp, obj) => panic!("wrong combination {exp:?} <> {obj}"),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Expectation {
     Int(i64),
+    Error(String),
     Null,
 }
 

@@ -1,11 +1,16 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::ast::{BlockStatement, Identifier, Node};
+use crate::{
+    ast::{BlockStatement, Identifier, Node},
+    builtins::Builtins,
+};
 
 // save some memory by stating constants
 const TRUE: Object = Object::Boolean(true);
 const FALSE: Object = Object::Boolean(false);
 const NULL: Object = Object::Null;
+
+pub type BuiltinFunction = fn(Vec<Object>) -> Object;
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -14,6 +19,7 @@ pub enum Object {
     String(String),
     ReturnValue(Box<Object>),
     Fn(Function),
+    BuiltinFunction(BuiltinFunction),
     Error(String),
     Null,
 }
@@ -27,6 +33,7 @@ impl Object {
             Self::Error(_) => "ERROR",
             Self::Fn(_) => "FUNCTION",
             Self::String(_) => "STRING",
+            Self::BuiltinFunction(_) => "BUILTIN",
             Self::Null => "NULL",
         }
     }
@@ -70,6 +77,7 @@ impl Display for Object {
                     .collect::<Vec<String>>();
                 write!(f, "fn({}) {{\n{}\n}}", params.join(","), val.body.print())
             }
+            Self::BuiltinFunction(_) => write!(f, "builtin function"),
             Self::Null => write!(f, "null"),
         }
     }
@@ -80,7 +88,15 @@ pub struct Environment(HashMap<String, Object>);
 
 impl Environment {
     pub fn new() -> Self {
-        Environment(HashMap::new())
+        Environment(Self::init_builtins())
+    }
+
+    fn init_builtins() -> HashMap<String, Object> {
+        let mut map = HashMap::new();
+        for (name, obj) in Builtins::get_all() {
+            map.insert(name, obj);
+        }
+        map
     }
 
     pub fn get(&self, name: &str) -> Option<&Object> {

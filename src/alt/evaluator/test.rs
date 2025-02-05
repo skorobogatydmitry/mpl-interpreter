@@ -177,7 +177,7 @@ fn test_eval_errors() {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
-        let program = parser.parse_program().expect("should not be an error");
+        let program = parser.parse_program().expect("parsing is expected to pass");
         let object = Evaluator::new().eval_program(program);
         match object {
             Err(msg) => assert_eq!(expected, msg),
@@ -255,9 +255,52 @@ fn test_eval_closures() {
     assert_integer_object(eval_program(input), 5);
 }
 
+#[test]
+fn test_builtin_function_len() {
+    let tests: Vec<(&str, _)> = vec![
+        (r#"len("")"#, Expectation::Int(0i64)),
+        (r#"len("asd")"#, Expectation::Int(3i64)),
+        (
+            r#"len(1)"#,
+            Expectation::Error("wrong argument for `len': INTEGER".to_string()),
+        ),
+        (
+            r#"len("one", "two")"#,
+            Expectation::Error("len expects one argument, got 2".to_string()),
+        ),
+    ];
+
+    for (input, expectation) in tests {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program().expect("parsing is expected to pass");
+        let object = Evaluator::new().eval_program(program);
+        match (expectation, object) {
+            (Expectation::Error(expected), Err(msg)) => assert_eq!(expected, msg),
+            (Expectation::Int(expected), Ok(Object::Integer(val))) => assert_eq!(expected, val),
+            (exp, Ok(obj)) => panic!("wrong combination {exp:?} <> {obj}"),
+            (exp, Err(msg)) => panic!("wrong combination {exp:?} <> {msg}"),
+        }
+    }
+}
+
+#[test]
+fn test_disallow_builtin_override() {
+    let input = "let len = 10;";
+    let lexer = Lexer::new(input);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program().expect("parsing is expected to pass");
+    let object = Evaluator::new().eval_program(program);
+    match object {
+        Err(msg) => assert_eq!("cannot override builtin `len'", msg),
+        Ok(obj) => panic!("expected to fail, got {obj}"),
+    }
+}
+
 #[derive(Debug)]
 enum Expectation {
     Int(i64),
+    Error(String),
     Null,
 }
 

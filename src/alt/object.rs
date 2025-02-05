@@ -2,6 +2,8 @@ use std::{collections::HashMap, fmt::Display};
 
 use crate::alt::ast::statement::Block;
 
+use super::builtins::{self, BuiltinFn};
+
 // save some memory by stating constants
 pub const TRUE: Object = Object::Boolean(true);
 pub const FALSE: Object = Object::Boolean(false);
@@ -17,6 +19,7 @@ pub enum Object {
     String(String),
     ReturnValue(Box<Object>),
     Fn(Function),
+    BuiltinFn(BuiltinFn),
     Null,
 }
 
@@ -28,6 +31,7 @@ impl Object {
             Self::ReturnValue(_) => "RETURN_VALUE",
             Self::Fn(_) => "FUNCTION",
             Self::String(_) => "STRING",
+            Self::BuiltinFn(_) => "BUILTIN_FUNCTION",
             Self::Null => "NULL",
         }
     }
@@ -63,6 +67,7 @@ impl Display for Object {
             Self::Fn(val) => {
                 write!(f, "fn({}) {}", val.params.join(","), val.body)
             }
+            Self::BuiltinFn(val) => write!(f, "builtin function: {}", val.desc),
             Self::Null => write!(f, "null"),
         }
     }
@@ -73,15 +78,21 @@ pub struct Environment(HashMap<String, Object>);
 
 impl Environment {
     pub fn new() -> Self {
-        Environment(HashMap::new())
+        Environment(builtins::get_functions().into_iter().collect())
     }
 
     pub fn get(&self, name: &str) -> Option<&Object> {
         self.0.get(name)
     }
 
-    pub fn set(&mut self, name: String, value: Object) {
-        self.0.insert(name, value);
+    pub fn set(&mut self, name: String, value: Object) -> Result<(), String> {
+        match self.0.get(&name) {
+            Some(Object::BuiltinFn(_)) => return Err("cannot override builtin `len'".to_string()),
+            _ => {
+                self.0.insert(name, value);
+                Ok(())
+            }
+        }
     }
 }
 

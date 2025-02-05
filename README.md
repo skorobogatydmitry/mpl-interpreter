@@ -64,7 +64,9 @@ Function calls require stacked environment support in order to (1) be able to de
 # Builtin functions and data types
 
 Strings, Vectors and functions like `len(...)`, `sizeof(...)` are useful... and yet missing in the interpreter.  
-Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.
+Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.  
+**Builtin functions** are pre-defined and provided along with an interpreter. They gets executed by the host language, which is rust. They appear on the evaluation phase.
+
 
 # The alt module ?
 

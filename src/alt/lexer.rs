@@ -98,6 +98,8 @@ impl<'a> Iterator for Lexer<'a> {
             '+' => Token::Plus,
             '{' => Token::Lbrace,
             '}' => Token::Rbrace,
+            '[' => Token::Lbracket,
+            ']' => Token::Rbracket,
             '-' => Token::Minus,
             '!' => {
                 if self.peek_char() == &'=' {
@@ -156,6 +158,7 @@ mod test {
         "foo bar";
         "foobar";
         "foo\"bar";
+        [1, 2];
         "#;
         let expected = vec![
             Token::Let,
@@ -236,6 +239,12 @@ mod test {
             Token::String("foobar".to_string()),
             Token::Semicolon,
             Token::String("foo\"bar".to_string()),
+            Token::Semicolon,
+            Token::Lbracket,
+            Token::Int("1".to_string()),
+            Token::Comma,
+            Token::Int("2".to_string()),
+            Token::Rbracket,
             Token::Semicolon,
         ];
 

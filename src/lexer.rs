@@ -39,6 +39,8 @@ impl Lexer {
             '+' => Token::new(literal, TokenKind::Plus),
             '{' => Token::new(literal, TokenKind::Lbrace),
             '}' => Token::new(literal, TokenKind::Rbrace),
+            '[' => Token::new(literal, TokenKind::Lbracket),
+            ']' => Token::new(literal, TokenKind::Rbracket),
             '-' => Token::new(literal, TokenKind::Minus),
             '!' => {
                 if self.peek_char() == '=' {
@@ -153,6 +155,7 @@ mod test {
         10 != 9;
         "foobar";
         "foo bar";
+        [1, 2];
         "#;
         let expected = vec![
             Token::new("let".to_string(), TokenKind::Let),
@@ -231,6 +234,12 @@ mod test {
             Token::new("foobar".to_string(), TokenKind::String),
             Token::new(";".to_string(), TokenKind::Semicolon),
             Token::new("foo bar".to_string(), TokenKind::String),
+            Token::new(";".to_string(), TokenKind::Semicolon),
+            Token::new("[".to_string(), TokenKind::Lbracket),
+            Token::new("1".to_string(), TokenKind::Int),
+            Token::new(",".to_string(), TokenKind::Comma),
+            Token::new("2".to_string(), TokenKind::Int),
+            Token::new("]".to_string(), TokenKind::Rbracket),
             Token::new(";".to_string(), TokenKind::Semicolon),
             Token::new("".to_string(), TokenKind::EOF),
         ];

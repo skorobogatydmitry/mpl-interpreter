@@ -35,6 +35,8 @@ pub enum TokenKind {
     Rparen,
     Lbrace,
     Rbrace,
+    Lbracket,
+    Rbracket,
 
     Function,
     Let,

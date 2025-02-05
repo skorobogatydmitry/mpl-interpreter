@@ -297,6 +297,22 @@ fn test_disallow_builtin_override() {
     }
 }
 
+#[test]
+fn test_builtin_function_typeof() {
+    let tests = vec![
+        ("typeof(1)", "INTEGER"),
+        ("typeof(\"x\")", "STRING"),
+        ("typeof(len)", "BUILTIN_FUNCTION"),
+    ];
+    for (input, expected) in tests {
+        let obj = eval_program(input);
+        match obj {
+            Object::String(val) => assert_eq!(expected, val),
+            etc => panic!("expected string, got {etc}"),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Expectation {
     Int(i64),

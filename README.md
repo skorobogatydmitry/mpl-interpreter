@@ -67,7 +67,8 @@ Strings, Vectors and functions like `len(...)`, `sizeof(...)` are useful... and 
 Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.  
 **Builtin functions** are pre-defined and provided along with an interpreter. They gets executed by the host language, which is rust. They appear on the evaluation phase.
 
-Arrays in MPL may contain any data types (they're heterogeneous). Algo is very similar to what's done to `String`.
+Arrays in MPL may contain any data types (they're heterogeneous). Algo is very similar to what's done to `String`.  
+MPL tolerates incorrect indices and returns `NULL`;
 
 # The alt module ?
 

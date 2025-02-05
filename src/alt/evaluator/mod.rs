@@ -5,7 +5,10 @@ use crate::alt::{
     object::{Environment, Function, Object},
 };
 
-use super::{object, token::Token};
+use super::{
+    object::{self, NULL},
+    token::Token,
+};
 
 #[cfg(test)]
 mod test;
@@ -93,6 +96,25 @@ impl Evaluator {
                 self.apply_function(func, args)
             }
             Expression::String(data) => Ok(Object::String(data)),
+            Expression::Array(data) => Ok(Object::Array(
+                data.into_iter()
+                    .map(|el| Ok(self.eval_expression(el)?))
+                    .collect::<Result<Vec<Object>, String>>()?,
+            )),
+            Expression::Index(data) => {
+                let operand = self.eval_expression(*data.operand)?;
+                let index = self.eval_expression(*data.index)?;
+                match (operand, index) {
+                    (Object::Array(arr), Object::Integer(idx)) => {
+                        if idx < 0 {
+                            Ok(NULL)
+                        } else {
+                            Ok(arr.get(idx as usize).map(|o| o.clone()).unwrap_or(NULL))
+                        }
+                    }
+                    (operand, index) => Err(format!("cannot index {operand} with {index}")),
+                }
+            }
             Expression::Empty => Ok(object::NULL),
         }
     }

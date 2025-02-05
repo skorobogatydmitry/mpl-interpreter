@@ -20,6 +20,7 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Fn(Function),
     BuiltinFn(BuiltinFn),
+    Array(Vec<Object>),
     Null,
 }
 
@@ -32,6 +33,7 @@ impl Object {
             Self::Fn(_) => "FUNCTION",
             Self::String(_) => "STRING",
             Self::BuiltinFn(_) => "BUILTIN_FUNCTION",
+            Self::Array(_) => "ARRAY",
             Self::Null => "NULL",
         }
     }
@@ -43,6 +45,7 @@ impl Object {
             Object::Boolean(bool) => *bool,
             Object::Integer(int) => *int > 0,
             Object::String(val) => !val.is_empty(),
+            Object::Array(val) => !val.is_empty(),
             _ => false,
         }
     }
@@ -67,6 +70,14 @@ impl Display for Object {
             Self::Fn(val) => {
                 write!(f, "fn({}) {}", val.params.join(","), val.body)
             }
+            Self::Array(data) => write!(
+                f,
+                "[{}]",
+                data.iter()
+                    .map(|el| format!("{}", el))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Self::BuiltinFn(val) => write!(f, "builtin function: {}", val.desc),
             Self::Null => write!(f, "null"),
         }
@@ -117,5 +128,7 @@ mod test {
         assert!(Object::Integer(1).is_truthy());
         assert!(!Object::String("".to_string()).is_truthy());
         assert!(Object::String(" ".to_string()).is_truthy());
+        assert!(!Object::Array(vec![]).is_truthy());
+        assert!(Object::Array(vec![Object::Integer(-1)]).is_truthy());
     }
 }

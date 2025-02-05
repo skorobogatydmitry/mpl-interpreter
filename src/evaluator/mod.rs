@@ -106,12 +106,51 @@ impl Evaluator {
                     }
                 }
                 Expression::StringExp(data) => Object::String(data.value),
+                Expression::Array(data) => Object::Array(
+                    data.elements
+                        .into_iter()
+                        .map(|el| match self.eval_expression(Some(el)) {
+                            Object::Error(err) => return Object::Error(err),
+                            valid => valid,
+                        })
+                        .collect(),
+                ),
+                Expression::Index(data) => {
+                    let operand = self.eval_expression(Some(*data.operand));
+                    match operand {
+                        Object::Error(_) => return operand,
+                        _ => {
+                            let index = self.eval_expression(Some(*data.index));
+
+                            match index {
+                                Object::Error(_) => index,
+                                _ => Self::eval_index_expression(operand, index),
+                            }
+                        }
+                    }
+                }
             }
         } else {
             Object::get_null()
         }
     }
 
+    fn eval_index_expression(operand: Object, index: Object) -> Object {
+        match (index, operand) {
+            (Object::Integer(idx), Object::Array(arr)) => {
+                if idx < 0 {
+                    return Object::get_null();
+                } else {
+                    arr.get(idx as usize)
+                        .map(|o| o.clone())
+                        .unwrap_or(Object::get_null())
+                }
+            }
+            (index, operand) => Object::Error(format!(
+                "index operator is not supported for index {index} and operand {operand}"
+            )),
+        }
+    }
     fn apply_function(&mut self, func: Object, args: Vec<Object>) -> Object {
         match func {
             Object::Fn(mut func) => {

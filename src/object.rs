@@ -20,6 +20,7 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Fn(Function),
     BuiltinFunction(BuiltinFunction),
+    Array(Vec<Object>),
     Error(String),
     Null,
 }
@@ -34,6 +35,7 @@ impl Object {
             Self::Fn(_) => "FUNCTION",
             Self::String(_) => "STRING",
             Self::BuiltinFunction(_) => "BUILTIN",
+            Self::Array(_) => "ARRAY",
             Self::Null => "NULL",
         }
     }
@@ -78,6 +80,14 @@ impl Display for Object {
                 write!(f, "fn({}) {{\n{}\n}}", params.join(","), val.body.print())
             }
             Self::BuiltinFunction(_) => write!(f, "builtin function"),
+            Self::Array(data) => write!(
+                f,
+                "[{}]",
+                data.iter()
+                    .map(|el| format!("{}", el))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Self::Null => write!(f, "null"),
         }
     }

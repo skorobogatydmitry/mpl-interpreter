@@ -262,11 +262,62 @@ fn test_builtin_function_len() {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program().expect("should not be an error");
         let object = Evaluator::new().eval_program(program);
-        match (expectation, object) {
-            (Expectation::Error(expected), Object::Error(msg)) => assert_eq!(expected, msg),
-            (Expectation::Int(expected), Object::Integer(val)) => assert_eq!(expected, val),
-            (exp, obj) => panic!("wrong combination {exp:?} <> {obj}"),
+
+        expectation.assert(object);
+    }
+}
+
+#[test]
+fn test_eval_array() {
+    let input = "[1,2*2,3+3]";
+    let object = Evaluator::new().eval_program(make_program(input));
+
+    match object {
+        Object::Array(mut arr) => {
+            match arr.pop().unwrap() {
+                Object::Integer(val) => assert_eq!(6, val),
+                etc => panic!("expected integer, got {etc}"),
+            };
+            match arr.pop().unwrap() {
+                Object::Integer(val) => assert_eq!(4, val),
+                etc => panic!("expected integer, got {etc}"),
+            };
+            match arr.pop().unwrap() {
+                Object::Integer(val) => assert_eq!(1, val),
+                etc => panic!("expected integer, got {etc}"),
+            };
         }
+        etc => panic!("expected an array, got {etc}"),
+    }
+}
+
+#[test]
+fn test_eval_index() {
+    let tests = vec![
+        ("[1, 2, 3][0]", Expectation::Int(1_i64)),
+        ("[1, 2, 3][1]", Expectation::Int(2_i64)),
+        ("[1, 2, 3][2]", Expectation::Int(3_i64)),
+        ("let i = 0; [1][i];", Expectation::Int(1_i64)),
+        ("[1, 2, 3][1 + 1];", Expectation::Int(3_i64)),
+        (
+            "let myArray = [1, 2, 3]; myArray[2];",
+            Expectation::Int(3_i64),
+        ),
+        (
+            "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+            Expectation::Int(6_i64),
+        ),
+        (
+            "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+            Expectation::Int(2_i64),
+        ),
+        ("[1, 2, 3][3]", Expectation::Null),
+        ("[1, 2, 3][-1]", Expectation::Null),
+    ];
+
+    for (input, expectation) in tests {
+        let object = Evaluator::new().eval_program(make_program(input));
+        expectation.assert(object);
     }
 }
 
@@ -282,6 +333,7 @@ impl Expectation {
         match (self, obj) {
             (Expectation::Int(exp), obj) => assert_integer_object(obj, exp),
             (Expectation::Null, Object::Null) => (),
+            (Expectation::Error(exp), Object::Error(msg)) => assert_eq!(exp, msg),
             (exp, obj) => panic!("cannot compare {:?} and {:?}", exp, obj),
         };
     }

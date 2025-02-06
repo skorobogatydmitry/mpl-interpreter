@@ -85,3 +85,5 @@ Gotchas:
 - the `Display` trait is needed to show program results to the end user. In particular, a function, which contains blocks which may contain expressions which may contain tokens, etc, etc
 
 I've made a 100% home-grown way to parse hashes: it's just a list of pairs, right ? <@_@>
+
+I didn't want to overcomplicate implementation with custom hashing keys and nested types, so I used slower, but a stop-gap `BTreeMap` to store all mappings. Namely: `Expression::Hash` AST node, `Object::Hash` and `Environment`. It allowed me not to worry about `#[derive(Hash)]` for Expression which itself has HashMap, etc, etc... Swapping `Environment`'s inner type was needed to fit `Object::Fn` into `BTreeMap` as a possible hash key (SIC!).

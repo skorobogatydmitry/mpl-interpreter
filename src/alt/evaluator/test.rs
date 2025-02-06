@@ -461,9 +461,9 @@ fn test_hash_literal() {
                 (Object::String("one".to_string()), 1),
                 (Object::String("two".to_string()), 2),
                 (Object::String("three".to_string()), 3),
-                (Object::String("4".to_string()), 4),
-                (Object::get_bool(true), 6),
-                (Object::get_bool(false), 1),
+                (Object::Integer(4), 4),
+                (Object::get_bool(true), 5),
+                (Object::get_bool(false), 6),
             ];
 
             for (expected_key, expected_val) in expected {

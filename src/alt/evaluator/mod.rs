@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::{cell::Cell, collections::BTreeMap};
 
 use crate::alt::{
     ast::{expression::If, Expression, Program, Statement},
@@ -116,7 +116,11 @@ impl Evaluator {
                     (operand, index) => Err(format!("cannot index {operand} with {index}")),
                 }
             }
-            Expression::Hash(_) => todo!(),
+            Expression::Hash(data) => Ok(Object::Hash(
+                data.into_iter()
+                    .map(|(k, v)| Ok((self.eval_expression(k)?, self.eval_expression(v)?)))
+                    .collect::<Result<BTreeMap<Object, Object>, String>>()?,
+            )),
             Expression::Pair(_) => Err("standalone pairs aren't supported".to_string()),
             Expression::Empty => Ok(object::NULL),
         }

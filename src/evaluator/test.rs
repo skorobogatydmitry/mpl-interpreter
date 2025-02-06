@@ -342,9 +342,9 @@ fn test_hash_literal() {
                 (Object::String("one".to_string()).hash_key().unwrap(), 1),
                 (Object::String("two".to_string()).hash_key().unwrap(), 2),
                 (Object::String("three".to_string()).hash_key().unwrap(), 3),
-                (Object::String("4".to_string()).hash_key().unwrap(), 4),
-                (Object::get_bool(true).hash_key().unwrap(), 6),
-                (Object::get_bool(false).hash_key().unwrap(), 1),
+                (Object::Integer(4).hash_key().unwrap(), 4),
+                (Object::get_bool(true).hash_key().unwrap(), 5),
+                (Object::get_bool(false).hash_key().unwrap(), 6),
             ];
 
             for (expected_key, expected_val) in expected {
@@ -352,7 +352,9 @@ fn test_hash_literal() {
                     Some(actual_pair) => {
                         assert_integer_object(actual_pair.value.clone(), expected_val);
                     }
-                    None => panic!("no value for key {expected_key:?}"),
+                    None => {
+                        panic!("no value for key {expected_key:?}, expected {expected_val}")
+                    }
                 }
             }
         }

@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crate::{
     ast::{BlockStatement, Expression, Identifier, IfExpression, Program, Statement},
-    object::{Environment, Function, Object},
+    object::{Environment, Function, HashObj, HashPair, Hashable, Object},
 };
 
 #[cfg(test)]
@@ -129,7 +131,28 @@ impl Evaluator {
                         }
                     }
                 }
-                Expression::Hash(_) => todo!(),
+                Expression::Hash(data) => {
+                    let mut pairs = HashMap::new();
+                    for (k, v) in data.h {
+                        let key = self.eval_expression(Some(k));
+                        match key {
+                            Object::Error(_) => return key,
+                            _ => {
+                                let hash_key = match key.hash_key() {
+                                    Ok(hash) => hash,
+                                    Err(msg) => return Object::Error(msg),
+                                };
+                                let value = self.eval_expression(Some(v));
+                                match value {
+                                    Object::Error(_) => return value,
+                                    _ => pairs.insert(hash_key, HashPair { key, value }),
+                                };
+                            }
+                        }
+                    }
+
+                    Object::Hash(HashObj { pairs })
+                }
             }
         } else {
             Object::get_null()

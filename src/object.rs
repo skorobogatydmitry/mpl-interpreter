@@ -96,7 +96,7 @@ impl Display for Object {
             ),
             Self::Hash(data) => write!(
                 f,
-                "[{{{}}}]",
+                "{{{}}}",
                 data.pairs
                     .iter()
                     .map(|(_, el)| format!("{}: {}", el.key, el.value))

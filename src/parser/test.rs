@@ -594,7 +594,7 @@ fn test_parse_index() {
 
 #[test]
 fn test_parse_hash() {
-    let input = r#"{"one": 1, 2: "two", "one": 3}"#;
+    let input = r#"{"one": 1, 2: "two", "three": 3}"#;
     let mut program = make_program_from(input, Some(1));
     match program.statements.pop().unwrap() {
         Statement::Expression(ExpressionStatement {
@@ -602,7 +602,7 @@ fn test_parse_hash() {
             expression: Some(Expression::Hash(hash)),
         }) => {
             assert_eq!(Token::new("{".to_string(), TokenKind::Lbrace), hash.token);
-            assert_eq!(2, hash.h.len());
+            assert_eq!(3, hash.h.len());
             for pair in hash.h {
                 match pair {
                     (
@@ -611,10 +611,11 @@ fn test_parse_hash() {
                             value: key,
                         }),
                         Expression::Integer(IntegerLiteral { token: _, value }),
-                    ) => {
-                        assert_eq!("one", key);
-                        assert_eq!(3, value);
-                    }
+                    ) => match key.as_str() {
+                        "one" => assert_eq!(1, value),
+                        "three" => assert_eq!(3, value),
+                        etc => panic!("unexpected key {etc}"),
+                    },
                     (
                         Expression::Integer(IntegerLiteral {
                             token: _,
@@ -651,7 +652,7 @@ fn test_parse_empty_hash() {
 
 #[test]
 fn test_parse_hash_with_expressions() {
-    let input = r#"{"one": 0+1, 10-8: "two", "one": 20/20}"#;
+    let input = r#"{10-8: "two", "one": 20/20}"#;
     let mut program = make_program_from(input, Some(1));
     match program.statements.pop().unwrap() {
         Statement::Expression(ExpressionStatement {
@@ -676,7 +677,7 @@ fn test_parse_hash_with_expressions() {
                         Expression::Infix(expr),
                         Expression::StringExp(StringLiteral { token: _, value }),
                     ) => {
-                        expr.assert_infix_expression(10, "operator", 8);
+                        expr.assert_infix_expression(10, "-", 8);
                         assert_eq!("two", value);
                     }
                     etc => panic!("unexpected pair in a hash: {etc:?}"),

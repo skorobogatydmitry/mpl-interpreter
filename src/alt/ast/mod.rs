@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 pub mod expression;
 pub mod statement;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Statement {
     Let(statement::Let),
     Return(statement::Return),
@@ -11,7 +11,7 @@ pub enum Statement {
     Block(statement::Block),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Expression {
     Identifier(String), // actual identifier's name
     Prefix(expression::Prefix),
@@ -22,6 +22,7 @@ pub enum Expression {
     Array(Vec<Expression>),
     Index(expression::Index),
     Hash(BTreeMap<Expression, Expression>),
+    Pair((Box<Expression>, Box<Expression>)),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),
@@ -59,6 +60,7 @@ impl Display for Expression {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
+            Expression::Pair((k, v)) => write!(f, "{}: {}", k, v),
             Expression::If(data) => write!(f, "{}", data),
             Expression::Fn(data) => write!(f, "{}", data),
             Expression::Call(data) => write!(f, "{}", data),

@@ -82,3 +82,5 @@ The "original" version of the code isn't 1:1 with the course too though.
 Gotchas:
 - the `Clone` trait is needed to save object's dublicates to the environment while preserving original ones
 - the `Display` trait is needed to show program results to the end user. In particular, a function, which contains blocks which may contain expressions which may contain tokens, etc, etc
+
+I've made a 100% home-grown way to parse hashes: it's just a list of pairs, right ? <@_@>

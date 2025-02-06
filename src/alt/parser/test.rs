@@ -613,15 +613,49 @@ fn test_parse_index() {
 }
 
 #[test]
+fn test_parse_pair() {
+    let tests = vec![
+        (
+            "4+5: \"some\"",
+            Expectation::Infix((
+                Box::new(Expectation::Int(4)),
+                Token::Plus,
+                Box::new(Expectation::Int(5)),
+            )),
+        ),
+        (
+            "4/5: \"some\"",
+            Expectation::Infix((
+                Box::new(Expectation::Int(4)),
+                Token::Slash,
+                Box::new(Expectation::Int(5)),
+            )),
+        ),
+    ];
+    for (input, expectation) in tests {
+        match make_program_from(input, Some(1)).statements.pop().unwrap() {
+            Statement::Expression(Expression::Pair((k, v))) => {
+                expectation.assert(*k);
+                Expectation::String("some".to_string()).assert(*v);
+            }
+            etc => panic!("expected pair, got {etc}"),
+        }
+    }
+}
+
+#[test]
 fn test_parse_hash() {
-    let input = r#"{"one": 1, 2: "two", "one": 3}"#;
+    let input = r#"let x = {"one": 1, 2: "two", "one": 3};"#;
     let expectations = vec![
         (Expectation::Int(2), Expectation::String("two".to_string())),
         (Expectation::String("one".to_string()), Expectation::Int(3)),
     ];
     let mut program = make_program_from(input, Some(1));
     match program.statements.pop().unwrap() {
-        Statement::Expression(Expression::Hash(hash)) => {
+        Statement::Let(Let {
+            name: _,
+            value: Expression::Hash(hash),
+        }) => {
             assert_eq!(2, hash.len());
             for ((exp_key, exp_val), (key, val)) in expectations.into_iter().zip(hash) {
                 exp_key.assert(key);
@@ -634,10 +668,13 @@ fn test_parse_hash() {
 
 #[test]
 fn test_parse_empty_hash() {
-    let input = "{}";
+    let input = "let x = {};";
     let mut program = make_program_from(input, Some(1));
     match program.statements.pop().unwrap() {
-        Statement::Expression(Expression::Hash(hash)) => {
+        Statement::Let(Let {
+            name: _,
+            value: Expression::Hash(hash),
+        }) => {
             assert!(hash.is_empty());
         }
         etc => panic!("expected an hash expression statement, got {etc:?}"),
@@ -646,12 +683,12 @@ fn test_parse_empty_hash() {
 
 #[test]
 fn test_parse_hash_with_expressions() {
-    let input = r#"{"one": 0+1, 10-8: "two", "one": 20/20}"#;
+    let input = r#"let x = {"one": 0+1, 10-8: "two", "one": 20/20};"#;
     let expectations = vec![
         (
             Expectation::Infix((
                 Box::new(Expectation::Int(10)),
-                Token::Plus,
+                Token::Minus,
                 Box::new(Expectation::Int(8)),
             )),
             Expectation::String("two".to_string()),
@@ -667,7 +704,10 @@ fn test_parse_hash_with_expressions() {
     ];
     let mut program = make_program_from(input, Some(1));
     match program.statements.pop().unwrap() {
-        Statement::Expression(Expression::Hash(hash)) => {
+        Statement::Let(Let {
+            name: _,
+            value: Expression::Hash(hash),
+        }) => {
             assert_eq!(2, hash.len());
             for ((exp_key, exp_val), (key, val)) in expectations.into_iter().zip(hash) {
                 exp_key.assert(key);
@@ -692,6 +732,7 @@ impl Expectation {
             (Expression::Boolean(actual), Expectation::Bool(val)) => assert_eq!(val, actual),
             (Expression::Integer(actual), Expectation::Int(val)) => assert_eq!(val, actual),
             (Expression::Identifier(actual), Expectation::String(val)) => assert_eq!(val, actual),
+            (Expression::String(actual), Expectation::String(val)) => assert_eq!(val, actual),
             (Expression::Infix(actual), Expectation::Infix((eleft, eop, eright))) => {
                 eleft.assert(*actual.left);
                 eright.assert(*actual.right);

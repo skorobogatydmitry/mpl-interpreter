@@ -7,20 +7,20 @@ use super::Statement;
 
 /// let statement descriptor  
 /// let <identifier> = <expression>;  
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Let {
     pub name: String, // identifier name: in `let x = 10;` it's `x`
     pub value: Expression,
 }
 
 /// `return <expression>;` or just `return;`
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Return {
     pub ret_expr: Expression,
 }
 
 /// { 5; 6; 7; add(1,2,x); }
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
 }

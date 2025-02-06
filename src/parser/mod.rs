@@ -77,6 +77,7 @@ impl Parser {
                 (TokenKind::Function, Self::parse_fn_expression),
                 (TokenKind::String, Self::parse_string_literal),
                 (TokenKind::Lbracket, Self::parse_array_literal),
+                (TokenKind::Lbrace, Self::parse_hash_literal),
             ]),
             infix_parse_fns: HashMap::from([
                 (
@@ -359,6 +360,39 @@ impl Parser {
             token: self.cur_token.clone(),
             elements: self.parse_expressions_list(TokenKind::Rbracket),
         }))
+    }
+
+    fn parse_hash_literal(&mut self) -> Option<Expression> {
+        let token = self.cur_token.clone();
+        let mut h = vec![];
+
+        while self.peek_token.kind != TokenKind::Rbrace {
+            self.next_token();
+            let key = self
+                .parse_expression(PrecedenceLevel::Lowest)
+                .expect("error parsing key expression");
+            if !self.expect_peek(TokenKind::Colon) {
+                return None;
+            }
+            self.next_token();
+            let val = self
+                .parse_expression(PrecedenceLevel::Lowest)
+                .expect(&format!(
+                    "error parsing value expression: {:?}",
+                    self.errors
+                ));
+            h.push((key, val));
+
+            if self.peek_token.kind != TokenKind::Rbrace && !self.expect_peek(TokenKind::Comma) {
+                return None;
+            }
+        }
+
+        if !self.expect_peek(TokenKind::Rbrace) {
+            return None;
+        }
+
+        Some(Expression::Hash(Hash { token, h }))
     }
 
     fn parse_fn_params(&mut self) -> Option<Vec<Identifier>> {

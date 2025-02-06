@@ -1,4 +1,4 @@
-use std::iter::Peekable;
+use std::{collections::BTreeMap, iter::Peekable};
 
 use crate::alt::{ast::*, lexer::Lexer, token::Token};
 
@@ -13,18 +13,20 @@ mod test;
 #[derive(PartialEq, PartialOrd)]
 enum PrecedenceLevel {
     Lowest = 0,
-    Equals = 1,      // ==
-    LessGreater = 2, // >,<
-    Sum = 3,         // +,-
-    Product = 4,     // *,/
-    Prefix = 5,      // -,+,!
-    Call = 6,        // add(1,2)
-    Index = 7,       // x[i]
+    Pair = 1,        // x: a - for pairs
+    Equals = 2,      // ==
+    LessGreater = 3, // >,<
+    Sum = 4,         // +,-
+    Product = 5,     // *,/
+    Prefix = 6,      // -,+,!
+    Call = 7,        // add(1,2)
+    Index = 8,       // x[i]
 }
 
 impl PrecedenceLevel {
     fn from_token(token: &Token) -> Self {
         match token {
+            Token::Colon => PrecedenceLevel::Pair,
             Token::Eq => PrecedenceLevel::Equals,
             Token::NotEq => PrecedenceLevel::Equals,
             Token::Lt => PrecedenceLevel::LessGreater,
@@ -166,6 +168,9 @@ impl<'a> Parser<'a> {
             Some(Token::Function) => self
                 .parse_fn_expression()
                 .map_err(|e| format!("(fn expression) {e}")),
+            Some(Token::Lbrace) => self
+                .parse_hash_expression()
+                .map_err(|e| format!("(hash expression) {e}")),
             Some(Token::Semicolon) => Ok(Expression::Empty),
             Some(etc) => Err(format!("no prefix parsing fn for token `{etc}'")),
             None => Err(format!("no token to parse an expression")),
@@ -174,7 +179,6 @@ impl<'a> Parser<'a> {
         while let Some(token) = self.lexer.peek() {
             let infix_fn = match token {
                 Token::Lparen => Self::parse_fn_call,
-                Token::Lbracket => Self::parse_index_expression,
                 Token::Plus
                 | Token::Minus
                 | Token::Asterisk
@@ -183,9 +187,13 @@ impl<'a> Parser<'a> {
                 | Token::NotEq
                 | Token::Lt
                 | Token::Gt => Self::parse_infix_expression,
-                Token::Semicolon | Token::Rparen | Token::Rbracket | Token::Comma => {
-                    return Ok(left_expr)
-                }
+                Token::Lbracket => Self::parse_index_expression,
+                Token::Colon => Self::parse_pair_expression,
+                Token::Semicolon
+                | Token::Rparen
+                | Token::Rbracket
+                | Token::Rbrace
+                | Token::Comma => return Ok(left_expr),
                 token => {
                     return Err(format!(
                         "unknown infix operator: `{token}', left expr: `{left_expr}'",
@@ -324,6 +332,19 @@ impl<'a> Parser<'a> {
         ))
     }
 
+    fn parse_hash_expression(&mut self) -> Result<Expression, String> {
+        let pairs = self.parse_expressions_list(Token::Rbrace)?;
+        let mut map = BTreeMap::new();
+        for exp in pairs {
+            match exp {
+                Expression::Pair((key, value)) => map.insert(*key, *value),
+                etc => return Err(format!("hash could only contain pairs, got {etc}")),
+            };
+        }
+
+        Ok(Expression::Hash(map))
+    }
+
     fn parse_block_as_statement(&mut self) -> Result<Statement, String> {
         self.lexer.next();
         Ok(Statement::Block(self.parse_block_statement()?))
@@ -395,6 +416,14 @@ impl<'a> Parser<'a> {
         }
 
         Ok(result)
+    }
+
+    fn parse_pair_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        self.lexer.next();
+        Ok(Expression::Pair((
+            Box::new(left),
+            Box::new(self.parse_expression(PrecedenceLevel::Lowest)?),
+        )))
     }
 
     fn parse_expressions_list(&mut self, end: Token) -> Result<Vec<Expression>, String> {

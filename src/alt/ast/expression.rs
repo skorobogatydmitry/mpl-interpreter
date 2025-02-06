@@ -6,21 +6,21 @@ use super::statement;
 use super::Expression;
 
 // there are only 2 operators: ! and -, so it could be e.g. -5 or !false
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Prefix {
     pub operator: Token,
     pub operand: Box<Expression>,
 }
 
 // there are several operators, common format is <expr> <operator> <expr>
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Infix {
     pub operator: Token,
     pub left: Box<Expression>,
     pub right: Box<Expression>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct If {
     pub condition: Box<Expression>,
     pub consequence: statement::Block,
@@ -31,7 +31,7 @@ pub struct If {
 /// # Examples
 /// fn(z,y) { z / y }  
 /// fn() { print_some() }
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Function {
     pub parameters: Vec<String>,
     pub body: statement::Block,
@@ -41,7 +41,7 @@ pub struct Function {
 /// # examples
 /// add(1,2,3);  
 /// fn(x,y,z) {x + y + z}(3,2,1)
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Call {
     pub function: Box<Expression>, // could be an identifier as well as an inline function
     pub arguments: Vec<Expression>,
@@ -51,7 +51,7 @@ pub struct Call {
 /// # examples
 /// some[1]
 /// [1,2,3][1+2]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Index {
     pub operand: Box<Expression>,
     pub index: Box<Expression>,

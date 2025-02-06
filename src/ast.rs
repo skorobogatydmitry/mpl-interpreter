@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::token::Token;
 
 /// abstract AST building block
@@ -154,7 +152,7 @@ pub struct Index {
 #[derive(Debug, Clone)]
 pub struct Hash {
     pub token: Token,
-    pub h: HashMap<Expression, Expression>,
+    pub h: Vec<(Expression, Expression)>,
 }
 
 impl Node for Statement {

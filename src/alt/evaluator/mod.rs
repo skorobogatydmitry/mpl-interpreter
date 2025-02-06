@@ -117,6 +117,7 @@ impl Evaluator {
                 }
             }
             Expression::Hash(_) => todo!(),
+            Expression::Pair(_) => Err("standalone pairs aren't supported".to_string()),
             Expression::Empty => Ok(object::NULL),
         }
     }

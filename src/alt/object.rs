@@ -12,7 +12,7 @@ pub const INT_ZERO: Object = Object::Integer(0);
 
 /// Evaluation results for individual statements
 /// Clone is required to store objects in the environment
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64), // integer type of MPL uses i64 under the hood
     Boolean(bool),
@@ -84,7 +84,7 @@ impl Display for Object {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Environment(HashMap<String, Object>);
 
 impl Environment {
@@ -107,7 +107,7 @@ impl Environment {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub params: Vec<String>,
     pub body: Block,

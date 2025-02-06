@@ -84,7 +84,7 @@ impl Evaluator {
                 .get_mut()
                 .get(&data)
                 .ok_or(format!("unknown identifier '{}'", data))
-                .map(|obj| obj.clone()),
+                .map(|obj| obj.clone()), // TODO: don't clone object to allow inplace modifications: `let x = [1,2,3]; rest(x); first(x) == 2; // true`
             Expression::Fn(data) => Ok(Object::Fn(Function {
                 params: data.parameters,
                 body: data.body,
@@ -109,6 +109,7 @@ impl Evaluator {
                         if idx < 0 {
                             Ok(NULL)
                         } else {
+                            // TODO: return the original object to allow inplace modifications: `let arr = [1,2,3]; let x = arr[0]; x += 1; first(arr) == 2;`
                             Ok(arr.get(idx as usize).map(|o| o.clone()).unwrap_or(NULL))
                         }
                     }

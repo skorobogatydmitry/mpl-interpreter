@@ -247,6 +247,8 @@ fn test_builtin_function_len() {
     let tests: Vec<(&str, _)> = vec![
         (r#"len("")"#, Expectation::Int(0i64)),
         (r#"len("asd")"#, Expectation::Int(3i64)),
+        (r#"len([1,2,3,4])"#, Expectation::Int(4i64)),
+        (r#"len([])"#, Expectation::Int(0i64)),
         (
             r#"len(1)"#,
             Expectation::Error("wrong argument for `len': INTEGER".to_string()),

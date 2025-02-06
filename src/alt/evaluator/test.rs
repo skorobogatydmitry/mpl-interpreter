@@ -5,7 +5,7 @@ use crate::alt::{lexer::Lexer, object::Object, parser::Parser};
 #[test]
 fn test_eval_block_statement() {
     let input = "{ let x = 5; return x; }";
-    let result = eval_program(input);
+    let result = eval_ok_program(input);
     assert_integer_object(result, 5);
 }
 
@@ -32,7 +32,7 @@ fn test_eval_integer_expression() {
     ];
 
     for (input, expected) in tests {
-        let result = eval_program(input);
+        let result = eval_ok_program(input);
         assert_integer_object(result, expected);
     }
 }
@@ -62,7 +62,7 @@ fn test_eval_boolean_expression() {
     ];
 
     for (input, expected) in tests {
-        let result = eval_program(input);
+        let result = eval_ok_program(input);
         assert_boolean_object(result, expected);
     }
 }
@@ -70,7 +70,7 @@ fn test_eval_boolean_expression() {
 #[test]
 fn test_string_eval() {
     let input = r#""hello world!""#;
-    let result = eval_program(input);
+    let result = eval_ok_program(input);
 
     match result {
         Object::String(val) => assert_eq!("hello world!", val),
@@ -82,7 +82,7 @@ fn test_string_eval() {
 fn test_string_concatenation() {
     let input = r#""hello" + " " + "world""#;
 
-    let result = eval_program(input);
+    let result = eval_ok_program(input);
 
     match result {
         Object::String(val) => assert_eq!("hello world", val),
@@ -103,8 +103,8 @@ fn test_eval_bang_operator() {
     ];
 
     for (input, expected) in tests {
-        let obj = eval_program(input);
-        assert_boolean_object(obj, expected);
+        let object = eval_ok_program(input);
+        assert_boolean_object(object, expected);
     }
 }
 
@@ -121,8 +121,8 @@ fn test_eval_if_else_expression() {
     ];
 
     for (input, expectation) in tests {
-        let evaluated = eval_program(input);
-        expectation.assert(evaluated);
+        let result = eval_program(input);
+        expectation.assert(result);
     }
 }
 
@@ -137,7 +137,7 @@ fn test_eval_return_statement() {
     ];
 
     for (input, expected) in test {
-        let object = eval_program(input);
+        let object = eval_ok_program(input);
         assert_integer_object(object, expected);
     }
 }
@@ -174,12 +174,8 @@ fn test_eval_errors() {
     ];
 
     for (input, expected) in tests {
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-
-        let program = parser.parse_program().expect("parsing is expected to pass");
-        let object = Evaluator::new().eval_program(program);
-        match object {
+        let result = eval_program(input);
+        match result {
             Err(msg) => assert_eq!(expected, msg),
             Ok(obj) => panic!("expected an error, got {}", obj),
         }
@@ -196,7 +192,7 @@ fn test_eval_let_statement() {
     ];
 
     for (input, expected) in tests {
-        let object = eval_program(input);
+        let object = eval_ok_program(input);
         assert_integer_object(object, expected);
     }
 }
@@ -204,7 +200,7 @@ fn test_eval_let_statement() {
 #[test]
 fn test_eval_simple_function() {
     let input = "fn(x) { x + 2; }";
-    let evaluated = eval_program(input);
+    let evaluated = eval_ok_program(input);
     match evaluated {
         Object::Fn(mut func) => {
             assert_eq!(vec!["x"], func.params.into_iter().collect::<Vec<String>>());
@@ -237,7 +233,7 @@ fn test_eval_function_call() {
     ];
 
     for (input, expected) in tests {
-        let object = eval_program(input);
+        let object = eval_ok_program(input);
         assert_integer_object(object, expected);
     }
 }
@@ -252,7 +248,7 @@ fn test_eval_closures() {
         add_two(3);
     "#;
 
-    assert_integer_object(eval_program(input), 5);
+    assert_integer_object(eval_ok_program(input), 5);
 }
 
 #[test]
@@ -260,40 +256,112 @@ fn test_builtin_function_len() {
     let tests: Vec<(&str, _)> = vec![
         (r#"len("")"#, Expectation::Int(0i64)),
         (r#"len("asd")"#, Expectation::Int(3i64)),
+        (r#"len([1,2,3,4])"#, Expectation::Int(4i64)),
+        (r#"len([])"#, Expectation::Int(0i64)),
         (
             r#"len(1)"#,
             Expectation::Error("wrong argument for `len': INTEGER".to_string()),
         ),
         (
             r#"len("one", "two")"#,
-            Expectation::Error("len expects one argument, got 2".to_string()),
+            Expectation::Error("expected exactly 1 argument, got 2".to_string()),
         ),
     ];
 
     for (input, expectation) in tests {
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program().expect("parsing is expected to pass");
-        let object = Evaluator::new().eval_program(program);
-        match (expectation, object) {
-            (Expectation::Error(expected), Err(msg)) => assert_eq!(expected, msg),
-            (Expectation::Int(expected), Ok(Object::Integer(val))) => assert_eq!(expected, val),
-            (exp, Ok(obj)) => panic!("wrong combination {exp:?} <> {obj}"),
-            (exp, Err(msg)) => panic!("wrong combination {exp:?} <> {msg}"),
-        }
+        expectation.assert(eval_program(input));
     }
 }
 
 #[test]
-fn test_disallow_builtin_override() {
-    let input = "let len = 10;";
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
-    let program = parser.parse_program().expect("parsing is expected to pass");
-    let object = Evaluator::new().eval_program(program);
-    match object {
-        Err(msg) => assert_eq!("cannot override builtin `len'", msg),
-        Ok(obj) => panic!("expected to fail, got {obj}"),
+fn test_builtin_function_first_n_last() {
+    let tests: Vec<(&str, _)> = vec![
+        (r#"first([])"#, Expectation::Null),
+        (r#"first(["asd"])"#, Expectation::String("asd".to_string())),
+        (r#"first([1,2,3,4])"#, Expectation::Int(1)),
+        (
+            r#"first(1)"#,
+            Expectation::Error("wrong argument for `first': INTEGER".to_string()),
+        ),
+        (
+            r#"first("one", "two")"#,
+            Expectation::Error("expected exactly 1 argument, got 2".to_string()),
+        ),
+        (r#"last([])"#, Expectation::Null),
+        (r#"last(["asd"])"#, Expectation::String("asd".to_string())),
+        (r#"last([1,2,3,4])"#, Expectation::Int(4)),
+        (
+            r#"last(1)"#,
+            Expectation::Error("wrong argument for `last': INTEGER".to_string()),
+        ),
+        (
+            r#"last("one", "two")"#,
+            Expectation::Error("expected exactly 1 argument, got 2".to_string()),
+        ),
+    ];
+
+    for (input, expectation) in tests {
+        expectation.assert(eval_program(input));
+    }
+}
+
+#[test]
+fn test_builtin_function_rest() {
+    let tests: Vec<(&str, _)> = vec![
+        (r#"rest([])"#, Expectation::Null),
+        (r#"rest(["asd"])"#, Expectation::Array(vec![])),
+        (
+            r#"rest([1,2,"3",4])"#,
+            Expectation::Array(vec![
+                Box::new(Expectation::Int(2)),
+                Box::new(Expectation::String("3".to_string())),
+                Box::new(Expectation::Int(4)),
+            ]),
+        ),
+        (
+            r#"rest(1)"#,
+            Expectation::Error("wrong argument for `rest': INTEGER".to_string()),
+        ),
+        (
+            r#"rest("one", "two")"#,
+            Expectation::Error("expected exactly 1 argument, got 2".to_string()),
+        ),
+    ];
+
+    for (input, expectation) in tests {
+        expectation.assert(eval_program(input));
+    }
+}
+
+#[test]
+fn test_builtin_function_push() {
+    let tests: Vec<(&str, _)> = vec![
+        (
+            r#"push([], 1)"#,
+            Expectation::Array(vec![Box::new(Expectation::Int(1))]),
+        ),
+        (
+            r#"push([1,2,"3",4], 5)"#,
+            Expectation::Array(vec![
+                Box::new(Expectation::Int(1)),
+                Box::new(Expectation::Int(2)),
+                Box::new(Expectation::String("3".to_string())),
+                Box::new(Expectation::Int(4)),
+                Box::new(Expectation::Int(5)),
+            ]),
+        ),
+        (
+            r#"push(1)"#,
+            Expectation::Error("push expects two arguments, got 1".to_string()),
+        ),
+        (
+            r#"push("one", "two")"#,
+            Expectation::Error("cannot `push' to `STRING'".to_string()),
+        ),
+    ];
+
+    for (input, expectation) in tests {
+        expectation.assert(eval_program(input));
     }
 }
 
@@ -305,7 +373,7 @@ fn test_builtin_function_typeof() {
         ("typeof(len)", "BUILTIN_FUNCTION"),
     ];
     for (input, expected) in tests {
-        let obj = eval_program(input);
+        let obj = eval_ok_program(input);
         match obj {
             Object::String(val) => assert_eq!(expected, val),
             etc => panic!("expected string, got {etc}"),
@@ -314,9 +382,16 @@ fn test_builtin_function_typeof() {
 }
 
 #[test]
+fn test_disallow_builtin_override() {
+    let input = "let len = 10;";
+    let result = eval_program(input);
+    Expectation::Error("cannot override builtin `len'".to_string()).assert(result);
+}
+
+#[test]
 fn test_eval_array() {
     let input = "[1,2*2,3+3]";
-    let object = eval_program(input);
+    let object = eval_ok_program(input);
 
     match object {
         Object::Array(mut arr) => {
@@ -370,32 +445,52 @@ fn test_eval_index() {
 #[derive(Debug)]
 enum Expectation {
     Int(i64),
+    String(String),
     Error(String),
+    Array(Vec<Box<Expectation>>),
     Null,
 }
 
 impl Expectation {
-    fn assert(self, obj: Object) {
+    fn assert(self, obj: Result<Object, String>) {
         match (self, obj) {
-            (Expectation::Int(exp), obj) => assert_integer_object(obj, exp),
-            (Expectation::Null, Object::Null) => (),
-            (exp, obj) => panic!("cannot compare {:?} and {}", exp, obj),
+            (Expectation::Int(exp), Ok(obj)) => assert_integer_object(obj, exp),
+            (Expectation::String(exp), Ok(Object::String(str))) => assert_eq!(exp, str),
+            (Expectation::Array(exps), Ok(Object::Array(arr))) => {
+                if exps.len() != arr.len() {
+                    panic!(
+                        "expected arry len ({}) != received array len ({})",
+                        exps.len(),
+                        arr.len()
+                    );
+                }
+                for (exp, obj) in exps.into_iter().zip(arr) {
+                    exp.assert(Ok(obj));
+                }
+            }
+            (Expectation::Error(exp), Err(msg)) => assert_eq!(exp, msg),
+            (Expectation::Null, Ok(Object::Null)) => (),
+            (exp, obj) => panic!("cannot compare {:?} and {:?}", exp, obj),
         };
     }
 }
 
-fn eval_program(input: &str) -> Object {
+/// evaluate the program by input
+fn eval_program(input: &str) -> Result<Object, String> {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     match program {
-        Ok(program) => {
-            let obj = Evaluator::new().eval_program(program);
-            match obj {
-                Ok(obj) => obj,
-                Err(msg) => panic!("{}", msg),
-            }
-        }
+        Ok(program) => Evaluator::new().eval_program(program),
+        Err(msg) => panic!("{}", msg),
+    }
+}
+
+/// expects program to return Ok
+fn eval_ok_program(input: &str) -> Object {
+    let obj = eval_program(input);
+    match obj {
+        Ok(obj) => obj,
         Err(msg) => panic!("{}", msg),
     }
 }

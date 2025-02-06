@@ -92,6 +92,7 @@ impl<'a> Iterator for Lexer<'a> {
                 }
             }
             ';' => Token::Semicolon,
+            ':' => Token::Colon,
             '(' => Token::Lparen,
             ')' => Token::Rparen,
             ',' => Token::Comma,
@@ -159,6 +160,7 @@ mod test {
         "foobar";
         "foo\"bar";
         [1, 2];
+        {"foo": "bar"};
         "#;
         let expected = vec![
             Token::Let,
@@ -245,6 +247,12 @@ mod test {
             Token::Comma,
             Token::Int("2".to_string()),
             Token::Rbracket,
+            Token::Semicolon,
+            Token::Lbrace,
+            Token::String("foo".to_string()),
+            Token::Colon,
+            Token::String("bar".to_string()),
+            Token::Rbrace,
             Token::Semicolon,
         ];
 

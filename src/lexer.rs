@@ -33,6 +33,7 @@ impl Lexer {
                 }
             }
             ';' => Token::new(literal, TokenKind::Semicolon),
+            ':' => Token::new(literal, TokenKind::Colon),
             '(' => Token::new(literal, TokenKind::Lparen),
             ')' => Token::new(literal, TokenKind::Rparen),
             ',' => Token::new(literal, TokenKind::Comma),
@@ -156,6 +157,7 @@ mod test {
         "foobar";
         "foo bar";
         [1, 2];
+        {"foo": "bar"};
         "#;
         let expected = vec![
             Token::new("let".to_string(), TokenKind::Let),
@@ -240,6 +242,12 @@ mod test {
             Token::new(",".to_string(), TokenKind::Comma),
             Token::new("2".to_string(), TokenKind::Int),
             Token::new("]".to_string(), TokenKind::Rbracket),
+            Token::new(";".to_string(), TokenKind::Semicolon),
+            Token::new("{".to_string(), TokenKind::Lbrace),
+            Token::new("foo".to_string(), TokenKind::String),
+            Token::new(":".to_string(), TokenKind::Colon),
+            Token::new("bar".to_string(), TokenKind::String),
+            Token::new("}".to_string(), TokenKind::Rbrace),
             Token::new(";".to_string(), TokenKind::Semicolon),
             Token::new("".to_string(), TokenKind::EOF),
         ];

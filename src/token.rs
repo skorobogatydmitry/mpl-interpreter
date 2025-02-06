@@ -30,6 +30,7 @@ pub enum TokenKind {
 
     Comma,
     Semicolon,
+    Colon,
 
     Lparen,
     Rparen,

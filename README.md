@@ -70,6 +70,8 @@ Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.
 Arrays in MPL may contain any data types (they're heterogeneous). Algo is very similar to what's done to `String`.  
 MPL tolerates incorrect indices and returns `NULL`;
 
+MPL has hashes. They're also heterogeneous: `{1: "one", "two": 2 + 3}`. Access works as for arrays, through `hash[expression]`.
+
 # The alt module ?
 
 The alt module carries my attempts to make the code code better. Original code has tons of copies of everything, doesn't care if a struct needs to own the value, passes values between helpers carelessly.

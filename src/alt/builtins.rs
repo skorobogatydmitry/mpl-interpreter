@@ -51,6 +51,13 @@ pub fn get_functions() -> Vec<(String, Object)> {
                 desc: "takes a collection and another object, return new collection extended by the element".to_string(),
             }),
         ),
+        (
+            "puts".to_string(),
+            Object::BuiltinFn(BuiltinFn {
+                f: puts,
+                desc: "put object as string to console".to_string(),
+            }),
+        ),
     ]
 }
 
@@ -114,6 +121,13 @@ fn push(mut args: Vec<Object>) -> Result<Object, String> {
     } else {
         Err(format!("push expects two arguments, got {}", args.len()))
     }
+}
+
+fn puts(args: Vec<Object>) -> Result<Object, String> {
+    for arg in args {
+        println!("{}", arg);
+    }
+    Ok(NULL)
 }
 
 /// helper to check for # of args

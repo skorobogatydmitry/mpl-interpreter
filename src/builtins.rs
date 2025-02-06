@@ -10,6 +10,7 @@ impl Builtins {
             ("last".to_string(), Object::BuiltinFunction(Self::last)),
             ("rest".to_string(), Object::BuiltinFunction(Self::rest)),
             ("push".to_string(), Object::BuiltinFunction(Self::push)),
+            ("puts".to_string(), Object::BuiltinFunction(Self::puts)),
         ]
     }
 
@@ -90,5 +91,12 @@ impl Builtins {
         } else {
             Object::Error(format!("push expects two arguments, got {}", args.len()))
         }
+    }
+
+    fn puts(args: Vec<Object>) -> Object {
+        for arg in args {
+            println!("{}", arg);
+        }
+        Object::get_null()
     }
 }

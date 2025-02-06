@@ -444,7 +444,7 @@ fn test_eval_index() {
 
 #[test]
 fn test_hash_literal() {
-    // TODO: add trisky keys & values e.g. let x = { fn(a,b) { a + b }: "sum" };
+    // TODO: add trisky keys & values e.g. let f = fn(a,b) { a + b }; let x = { f: "sum" }; x[f]
     let input = r#"
         let two = "two";
         let x = {

@@ -148,26 +148,26 @@ fn test_return_statement() {
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert_infix_expression(
-                stmt.ret_expr,
-                Expectation::String("x".to_string()),
+            Expectation::Infix((
+                Box::new(Expectation::String("x".to_string())),
                 Token::Plus,
-                Expectation::String("t".to_string()),
-            );
+                Box::new(Expectation::String("t".to_string())),
+            ))
+            .assert(stmt.ret_expr);
         }
         some => panic!("not a return statement but {some}"),
     }
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert_literal_expr(stmt.ret_expr, Expectation::Int(10));
+            Expectation::Int(10).assert(stmt.ret_expr);
         }
         some => panic!("not a return statement but {some}"),
     }
 
     match program.statements.pop().unwrap() {
         Statement::Return(stmt) => {
-            assert_literal_expr(stmt.ret_expr, Expectation::Int(1));
+            Expectation::Int(1).assert(stmt.ret_expr);
         }
         some => panic!("not a return statement but {some}"),
     }
@@ -233,13 +233,13 @@ fn test_parse_prefix_expression() {
         ("!false", Token::Bang, Expectation::Bool(false)),
     ];
 
-    for (input, op, operand) in code_samples_n_results {
+    for (input, op, expectation) in code_samples_n_results {
         let mut program = make_program_from(input, Some(1));
 
         match program.statements.pop().unwrap() {
             Statement::Expression(Expression::Prefix(expr)) => {
                 assert_eq!(op, expr.operator);
-                assert_literal_expr(*expr.operand, operand);
+                expectation.assert(*expr.operand);
             }
             stmt => panic!("not a statement expression: {stmt}"),
         }
@@ -313,7 +313,7 @@ fn test_parse_infix_expression_int() {
 
         match program.statements.pop().unwrap() {
             Statement::Expression(expr) => {
-                assert_infix_expression(expr, left_op, operator, right_op)
+                Expectation::Infix((Box::new(left_op), operator, Box::new(right_op))).assert(expr);
             }
             stmt => panic!("not an expression statement: {stmt}"),
         }
@@ -416,17 +416,15 @@ fn test_if_expression() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::If(mut if_expr)) => {
-            assert_infix_expression(
-                *if_expr.condition,
-                Expectation::String("x".to_string()),
+            Expectation::Infix((
+                Box::new(Expectation::String("x".to_string())),
                 Token::Lt,
-                Expectation::String("y".to_string()),
-            );
+                Box::new(Expectation::String("y".to_string())),
+            ))
+            .assert(*if_expr.condition);
             assert_eq!(1, if_expr.consequence.statements.len());
             match if_expr.consequence.statements.pop().unwrap() {
-                Statement::Expression(cons) => {
-                    assert_literal_expr(cons, Expectation::String("x".to_string()))
-                }
+                Statement::Expression(cons) => Expectation::String("x".to_string()).assert(cons),
                 some => panic!("consequence is not an expression, but {some}"),
             }
 
@@ -446,24 +444,20 @@ fn test_if_else_expression() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::If(mut if_expr)) => {
-            assert_infix_expression(
-                *if_expr.condition,
-                Expectation::String("x".to_string()),
+            Expectation::Infix((
+                Box::new(Expectation::String("x".to_string())),
                 Token::Lt,
-                Expectation::String("y".to_string()),
-            );
+                Box::new(Expectation::String("y".to_string())),
+            ))
+            .assert(*if_expr.condition);
             assert_eq!(1, if_expr.consequence.statements.len());
             match if_expr.consequence.statements.pop().unwrap() {
-                Statement::Expression(cons) => {
-                    assert_literal_expr(cons, Expectation::String("x".to_string()))
-                }
+                Statement::Expression(cons) => Expectation::String("x".to_string()).assert(cons),
                 some => panic!("consequence is not an expression, but {some}"),
             }
 
             match if_expr.alternative.unwrap().statements.pop().unwrap() {
-                Statement::Expression(alt) => {
-                    assert_literal_expr(alt, Expectation::String("y".to_string()))
-                }
+                Statement::Expression(alt) => Expectation::String("y".to_string()).assert(alt),
                 some => panic!("consequence is not an expression, but {some}"),
             }
         }
@@ -490,12 +484,12 @@ fn test_function_expression() {
             assert_eq!(1, fn_expr.body.statements.len());
 
             match fn_expr.body.statements.pop().unwrap() {
-                Statement::Expression(expr) => assert_infix_expression(
-                    expr,
-                    Expectation::String("x".to_string()),
+                Statement::Expression(expr) => Expectation::Infix((
+                    Box::new(Expectation::String("x".to_string())),
                     Token::Plus,
-                    Expectation::String("y".to_string()),
-                ),
+                    Box::new(Expectation::String("y".to_string())),
+                ))
+                .assert(expr),
                 etc => panic!("not an expression but {etc}"),
             }
         }
@@ -537,7 +531,7 @@ fn test_function_call_without_args() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::Call(call_expr)) => {
-            assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
+            Expectation::String("add".to_string()).assert(*call_expr.function);
             assert!(call_expr.arguments.is_empty());
         }
         some => panic!("not an expression but {some}"),
@@ -552,20 +546,20 @@ fn test_function_call() {
 
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::Call(mut call_expr)) => {
-            assert_literal_expr(*call_expr.function, Expectation::String("add".to_string()));
-            assert_infix_expression(
-                call_expr.arguments.pop().unwrap(),
-                Expectation::Int(4),
+            Expectation::String("add".to_string()).assert(*call_expr.function);
+            Expectation::Infix((
+                Box::new(Expectation::Int(4)),
                 Token::Plus,
-                Expectation::Int(5),
-            );
-            assert_infix_expression(
-                call_expr.arguments.pop().unwrap(),
-                Expectation::Int(2),
+                Box::new(Expectation::Int(5)),
+            ))
+            .assert(call_expr.arguments.pop().unwrap());
+            Expectation::Infix((
+                Box::new(Expectation::Int(2)),
                 Token::Asterisk,
-                Expectation::Int(3),
-            );
-            assert_literal_expr(call_expr.arguments.pop().unwrap(), Expectation::Int(1));
+                Box::new(Expectation::Int(3)),
+            ))
+            .assert(call_expr.arguments.pop().unwrap());
+            Expectation::Int(1).assert(call_expr.arguments.pop().unwrap());
         }
         some => panic!("not an expression but {some}"),
     }
@@ -578,19 +572,19 @@ fn test_parse_array() {
     match program.statements.pop().unwrap() {
         Statement::Expression(Expression::Array(mut arr)) => {
             assert_eq!(3, arr.len());
-            assert_infix_expression(
-                arr.pop().unwrap(),
-                Expectation::Int(3),
+            Expectation::Infix((
+                Box::new(Expectation::Int(3)),
                 Token::Plus,
-                Expectation::Int(3),
-            );
-            assert_infix_expression(
-                arr.pop().unwrap(),
-                Expectation::Int(2),
+                Box::new(Expectation::Int(3)),
+            ))
+            .assert(arr.pop().unwrap());
+            Expectation::Infix((
+                Box::new(Expectation::Int(2)),
                 Token::Asterisk,
-                Expectation::Int(2),
-            );
-            assert_literal_expr(arr.pop().unwrap(), Expectation::Int(1));
+                Box::new(Expectation::Int(2)),
+            ))
+            .assert(arr.pop().unwrap());
+            Expectation::Int(1).assert(arr.pop().unwrap());
         }
         etc => panic!("expected an array expression statement, got {etc:?}"),
     }
@@ -607,14 +601,80 @@ fn test_parse_index() {
                 etc => panic!("not an identifier but {etc:?}"),
             }
 
-            assert_infix_expression(
-                *index.index,
-                Expectation::Int(1),
+            Expectation::Infix((
+                Box::new(Expectation::Int(1)),
                 Token::Plus,
-                Expectation::Int(2),
-            );
+                Box::new(Expectation::Int(2)),
+            ))
+            .assert(*index.index);
         }
         etc => panic!("expected an index expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_hash() {
+    let input = r#"{"one": 1, 2: "two", "one": 3}"#;
+    let expectations = vec![
+        (Expectation::Int(2), Expectation::String("two".to_string())),
+        (Expectation::String("one".to_string()), Expectation::Int(3)),
+    ];
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Hash(hash)) => {
+            assert_eq!(2, hash.len());
+            for ((exp_key, exp_val), (key, val)) in expectations.into_iter().zip(hash) {
+                exp_key.assert(key);
+                exp_val.assert(val);
+            }
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_empty_hash() {
+    let input = "{}";
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Hash(hash)) => {
+            assert!(hash.is_empty());
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_hash_with_expressions() {
+    let input = r#"{"one": 0+1, 10-8: "two", "one": 20/20}"#;
+    let expectations = vec![
+        (
+            Expectation::Infix((
+                Box::new(Expectation::Int(10)),
+                Token::Plus,
+                Box::new(Expectation::Int(8)),
+            )),
+            Expectation::String("two".to_string()),
+        ),
+        (
+            Expectation::String("one".to_string()),
+            Expectation::Infix((
+                Box::new(Expectation::Int(20)),
+                Token::Slash,
+                Box::new(Expectation::Int(20)),
+            )),
+        ),
+    ];
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(Expression::Hash(hash)) => {
+            assert_eq!(2, hash.len());
+            for ((exp_key, exp_val), (key, val)) in expectations.into_iter().zip(hash) {
+                exp_key.assert(key);
+                exp_val.assert(val);
+            }
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
     }
 }
 
@@ -622,31 +682,23 @@ fn test_parse_index() {
 enum Expectation {
     String(String),
     Bool(bool),
+    Infix((Box<Expectation>, Token, Box<Expectation>)),
     Int(i64),
 }
 
-fn assert_literal_expr(expr: Expression, expected: Expectation) {
-    match (expr, expected) {
-        (Expression::Boolean(data), Expectation::Bool(val)) => assert_eq!(val, data),
-        (Expression::Integer(data), Expectation::Int(val)) => assert_eq!(val, data),
-        (Expression::Identifier(data), Expectation::String(val)) => assert_eq!(val, data),
-        (expr, expected) => panic!("cannot compare {expr} and {expected:?}"),
-    }
-}
-
-fn assert_infix_expression(
-    expr: Expression,
-    left: Expectation,
-    operator: Token,
-    right: Expectation,
-) {
-    match expr {
-        Expression::Infix(expr) => {
-            assert_literal_expr(*expr.left, left);
-            assert_eq!(operator, expr.operator);
-            assert_literal_expr(*expr.right, right);
+impl Expectation {
+    fn assert(self, expr: Expression) {
+        match (expr, self) {
+            (Expression::Boolean(actual), Expectation::Bool(val)) => assert_eq!(val, actual),
+            (Expression::Integer(actual), Expectation::Int(val)) => assert_eq!(val, actual),
+            (Expression::Identifier(actual), Expectation::String(val)) => assert_eq!(val, actual),
+            (Expression::Infix(actual), Expectation::Infix((eleft, eop, eright))) => {
+                eleft.assert(*actual.left);
+                eright.assert(*actual.right);
+                assert_eq!(eop, actual.operator);
+            }
+            (expr, expected) => panic!("cannot compare {expr} and {expected:?}"),
         }
-        etc => panic!("expected infix expression, got {etc}"),
     }
 }
 

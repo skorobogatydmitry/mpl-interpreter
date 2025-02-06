@@ -592,6 +592,101 @@ fn test_parse_index() {
     }
 }
 
+#[test]
+fn test_parse_hash() {
+    let input = r#"{"one": 1, 2: "two", "one": 3}"#;
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            token: _,
+            expression: Some(Expression::Hash(hash)),
+        }) => {
+            assert_eq!(Token::new("{".to_string(), TokenKind::Lbrace), hash.token);
+            assert_eq!(2, hash.h.len());
+            for pair in hash.h {
+                match pair {
+                    (
+                        Expression::StringExp(StringLiteral {
+                            token: _,
+                            value: key,
+                        }),
+                        Expression::Integer(IntegerLiteral { token: _, value }),
+                    ) => {
+                        assert_eq!("one", key);
+                        assert_eq!(3, value);
+                    }
+                    (
+                        Expression::Integer(IntegerLiteral {
+                            token: _,
+                            value: key,
+                        }),
+                        Expression::StringExp(StringLiteral { token: _, value }),
+                    ) => {
+                        assert_eq!(2, key);
+                        assert_eq!("two", value);
+                    }
+                    etc => panic!("unexpected pair in a hash: {etc:?}"),
+                }
+            }
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_empty_hash() {
+    let input = r#"{}"#;
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            token: _,
+            expression: Some(Expression::Hash(hash)),
+        }) => {
+            assert_eq!(Token::new("{".to_string(), TokenKind::Lbrace), hash.token);
+            assert!(hash.h.is_empty());
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
+    }
+}
+
+#[test]
+fn test_parse_hash_with_expressions() {
+    let input = r#"{"one": 0+1, 10-8: "two", "one": 20/20}"#;
+    let mut program = make_program_from(input, Some(1));
+    match program.statements.pop().unwrap() {
+        Statement::Expression(ExpressionStatement {
+            token: _,
+            expression: Some(Expression::Hash(hash)),
+        }) => {
+            assert_eq!(Token::new("{".to_string(), TokenKind::Lbrace), hash.token);
+            assert_eq!(2, hash.h.len());
+            for pair in hash.h {
+                match pair {
+                    (
+                        Expression::StringExp(StringLiteral {
+                            token: _,
+                            value: key,
+                        }),
+                        Expression::Infix(expr),
+                    ) => {
+                        assert_eq!("one", key);
+                        expr.assert_infix_expression(20, "/", 20);
+                    }
+                    (
+                        Expression::Infix(expr),
+                        Expression::StringExp(StringLiteral { token: _, value }),
+                    ) => {
+                        expr.assert_infix_expression(10, "operator", 8);
+                        assert_eq!("two", value);
+                    }
+                    etc => panic!("unexpected pair in a hash: {etc:?}"),
+                }
+            }
+        }
+        etc => panic!("expected an hash expression statement, got {etc:?}"),
+    }
+}
+
 trait Assertable<Y> {
     fn assert_literal_expr(&self, _expected: Y) {}
     fn assert_infix_expression(&self, _left: Y, _operator: &str, _right: Y) {

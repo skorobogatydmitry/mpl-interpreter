@@ -170,6 +170,16 @@ impl Evaluator {
                         .unwrap_or(Object::get_null())
                 }
             }
+            (index, Object::Hash(hash)) => {
+                let key = match index.hash_key() {
+                    Ok(key) => key,
+                    Err(msg) => return Object::Error(msg),
+                };
+                match hash.pairs.get(&key) {
+                    Some(pair) => pair.value.clone(),
+                    None => Object::get_null(),
+                }
+            }
             (index, operand) => Object::Error(format!(
                 "index operator is not supported for index {index} and operand {operand}"
             )),

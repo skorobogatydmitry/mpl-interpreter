@@ -444,6 +444,7 @@ fn test_eval_index() {
 
 #[test]
 fn test_hash_literal() {
+    // TODO: add trisky keys & values e.g. let x = { fn(a,b) { a + b }: "sum" };
     let input = r#"
         let two = "two";
         let x = {
@@ -479,6 +480,27 @@ fn test_hash_literal() {
     }
 }
 
+#[test]
+fn test_hash_index_expressions() {
+    let tests = vec![
+        (r#"let x = {"foo": 5}["foo"]"#, Expectation::Int(5_i64)),
+        (r#"let x = {"foo": 5}["bar"]"#, Expectation::Null),
+        (
+            r#"let key = "foo"; let x = {"foo": 5}[key]"#,
+            Expectation::Int(5_i64),
+        ),
+        (r#"let x = {}["foo"]"#, Expectation::Null),
+        (r#"let x = {5: 5}[5]"#, Expectation::Int(5_i64)),
+        (r#"let x = {true: 5}[true]"#, Expectation::Int(5_i64)),
+        (r#"let x = {false: 5}[false]"#, Expectation::Int(5_i64)),
+    ];
+
+    for (input, expectation) in tests {
+        let object = eval_program(input);
+        expectation.assert(object);
+    }
+}
+
 #[derive(Debug)]
 enum Expectation {
     Int(i64),
@@ -505,7 +527,9 @@ impl Expectation {
                     exp.assert(Ok(obj));
                 }
             }
-            (Expectation::Error(exp), Err(msg)) => assert_eq!(exp, msg),
+            (Expectation::Error(exp), Err(msg)) => {
+                assert_eq!(exp, msg)
+            }
             (Expectation::Null, Ok(Object::Null)) => (),
             (exp, obj) => panic!("cannot compare {:?} and {:?}", exp, obj),
         };

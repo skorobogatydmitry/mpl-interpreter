@@ -163,7 +163,10 @@ fn test_eval_errors() {
         ),
         ("foobar", "unknown identifier 'foobar'"),
         (r#""hello" - "world""#, "type mismatch: STRING - STRING"),
-        // TODO: ("10 ! 5", "unknown operation ! for INTEGER"),
+        (
+            r#"{"name": "Monkey"}[fn(x) { x }]"#,
+            "can't be a hash key: fn(x) {\nx\n}",
+        ),
     ];
 
     for (input, expected) in tests {
@@ -359,6 +362,27 @@ fn test_hash_literal() {
             }
         }
         other => panic!("expected hash, got {other}"),
+    }
+}
+
+#[test]
+fn test_hash_index_expressions() {
+    let tests = vec![
+        (r#"{"foo": 5}["foo"]"#, Expectation::Int(5_i64)),
+        (r#"{"foo": 5}["bar"]"#, Expectation::Null),
+        (
+            r#"let key = "foo"; {"foo": 5}[key]"#,
+            Expectation::Int(5_i64),
+        ),
+        (r#"{}["foo"]"#, Expectation::Null),
+        (r#"{5: 5}[5]"#, Expectation::Int(5_i64)),
+        (r#"{true: 5}[true]"#, Expectation::Int(5_i64)),
+        (r#"{false: 5}[false]"#, Expectation::Int(5_i64)),
+    ];
+
+    for (input, expectation) in tests {
+        let object = Evaluator::new().eval_program(make_program(input));
+        expectation.assert(object);
     }
 }
 

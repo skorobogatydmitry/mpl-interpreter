@@ -113,6 +113,9 @@ impl Evaluator {
                             Ok(arr.get(idx as usize).map(|o| o.clone()).unwrap_or(NULL))
                         }
                     }
+                    (Object::Hash(hash), index) => {
+                        Ok(hash.get(&index).map(|o| o.clone()).unwrap_or(Object::Null))
+                    }
                     (operand, index) => Err(format!("cannot index {operand} with {index}")),
                 }
             }

@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     ast::{Node, Program},
     lexer::Lexer,
-    object::Object,
+    object::{Hashable, Object},
     parser::Parser,
 };
 
@@ -320,6 +320,43 @@ fn test_eval_index() {
     for (input, expectation) in tests {
         let object = Evaluator::new().eval_program(make_program(input));
         expectation.assert(object);
+    }
+}
+
+#[test]
+fn test_hash_literal() {
+    let input = r#"
+        let two = "two";
+        let x = {
+          "one": 10-9,
+          "two": 1+1,
+          "thr" + "ee": 6/2,
+          4: 4,
+          true: 5,
+          false:6
+        }"#;
+    let object = Evaluator::new().eval_program(make_program(input));
+    match object {
+        Object::Hash(result) => {
+            let expected = vec![
+                (Object::String("one".to_string()).hash_key().unwrap(), 1),
+                (Object::String("two".to_string()).hash_key().unwrap(), 2),
+                (Object::String("three".to_string()).hash_key().unwrap(), 3),
+                (Object::String("4".to_string()).hash_key().unwrap(), 4),
+                (Object::get_bool(true).hash_key().unwrap(), 6),
+                (Object::get_bool(false).hash_key().unwrap(), 1),
+            ];
+
+            for (expected_key, expected_val) in expected {
+                match result.pairs.get(&expected_key) {
+                    Some(actual_pair) => {
+                        assert_integer_object(actual_pair.value.clone(), expected_val);
+                    }
+                    None => panic!("no value for key {expected_key:?}"),
+                }
+            }
+        }
+        other => panic!("expected hash, got {other}"),
     }
 }
 

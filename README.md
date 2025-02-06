@@ -70,7 +70,8 @@ Adding a type / fn pierces all 3 blocks built: lexer, parser and evaluator.
 Arrays in MPL may contain any data types (they're heterogeneous). Algo is very similar to what's done to `String`.  
 MPL tolerates incorrect indices and returns `NULL`;
 
-MPL has hashes. They're also heterogeneous: `{1: "one", "two": 2 + 3}`. Access works as for arrays, through `hash[expression]`.
+MPL has hashes. They're also heterogeneous: `{1: "one", "two": 2 + 3}`. Access works as for arrays, through `hash[expression]`.  
+Implementing Hash access has a problem that key Objects created during Hash initialization has to be comparable with objects used to access the items later.  
 
 # The alt module ?
 

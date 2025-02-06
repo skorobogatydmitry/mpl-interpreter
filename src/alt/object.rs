@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::BTreeMap, fmt::Display};
 
 use crate::alt::ast::statement::Block;
 
@@ -12,7 +12,7 @@ pub const INT_ZERO: Object = Object::Integer(0);
 
 /// Evaluation results for individual statements
 /// Clone is required to store objects in the environment
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Object {
     Integer(i64), // integer type of MPL uses i64 under the hood
     Boolean(bool),
@@ -21,6 +21,7 @@ pub enum Object {
     Fn(Function),
     BuiltinFn(BuiltinFn),
     Array(Vec<Object>),
+    Hash(BTreeMap<Object, Object>),
     Null,
 }
 
@@ -34,6 +35,7 @@ impl Object {
             Self::String(_) => "STRING",
             Self::BuiltinFn(_) => "BUILTIN_FUNCTION",
             Self::Array(_) => "ARRAY",
+            Self::Hash(_) => "HASH",
             Self::Null => "NULL",
         }
     }
@@ -78,14 +80,22 @@ impl Display for Object {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
+            Self::Hash(data) => write!(
+                f,
+                "{{{}}}",
+                data.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Self::BuiltinFn(val) => write!(f, "builtin function: {}", val.desc),
             Self::Null => write!(f, "null"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Environment(HashMap<String, Object>);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub struct Environment(BTreeMap<String, Object>);
 
 impl Environment {
     pub fn new() -> Self {
@@ -107,7 +117,7 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Function {
     pub params: Vec<String>,
     pub body: Block,

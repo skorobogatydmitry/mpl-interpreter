@@ -442,6 +442,43 @@ fn test_eval_index() {
     }
 }
 
+#[test]
+fn test_hash_literal() {
+    let input = r#"
+        let two = "two";
+        let x = {
+          "one": 10-9,
+          "two": 1+1,
+          "thr" + "ee": 6/2,
+          4: 4,
+          true: 5,
+          false:6
+        }"#;
+    let object = eval_ok_program(input);
+    match object {
+        Object::Hash(mut result) => {
+            let expected = vec![
+                (Object::String("one".to_string()), 1),
+                (Object::String("two".to_string()), 2),
+                (Object::String("three".to_string()), 3),
+                (Object::String("4".to_string()), 4),
+                (Object::get_bool(true), 6),
+                (Object::get_bool(false), 1),
+            ];
+
+            for (expected_key, expected_val) in expected {
+                match result.remove(&expected_key) {
+                    Some(actual_val) => {
+                        assert_integer_object(actual_val, expected_val);
+                    }
+                    None => panic!("no value for key {expected_key:?}"),
+                }
+            }
+        }
+        other => panic!("expected hash, got {other}"),
+    }
+}
+
 #[derive(Debug)]
 enum Expectation {
     Int(i64),

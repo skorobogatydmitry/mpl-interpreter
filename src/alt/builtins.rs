@@ -1,6 +1,6 @@
 use super::object::{Object, NULL};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct BuiltinFn {
     pub f: fn(Vec<Object>) -> Result<Object, String>,
     pub desc: String,

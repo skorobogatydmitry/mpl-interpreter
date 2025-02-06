@@ -19,6 +19,6 @@ fn main() {
             }
             other => panic!("only --alt is supported, got {other}"),
         },
-        n => panic!("expected 1 argument at most"),
+        n => panic!("expected 1 argument at most, got {n}"),
     }
 }

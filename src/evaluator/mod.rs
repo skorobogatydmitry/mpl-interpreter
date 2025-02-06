@@ -129,6 +129,7 @@ impl Evaluator {
                         }
                     }
                 }
+                Expression::Hash(_) => todo!(),
             }
         } else {
             Object::get_null()

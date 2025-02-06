@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::token::Token;
 
 /// abstract AST building block
@@ -27,6 +29,7 @@ pub enum Expression {
     StringExp(StringLiteral),
     Array(Array),
     Index(Index),
+    Hash(Hash),
 }
 
 pub struct Program {
@@ -148,6 +151,12 @@ pub struct Index {
     pub index: Box<Expression>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Hash {
+    pub token: Token,
+    pub h: HashMap<Expression, Expression>,
+}
+
 impl Node for Statement {
     fn token_literal(&self) -> String {
         match self {
@@ -181,6 +190,7 @@ impl Node for Expression {
             Self::StringExp(data) => data.token_literal(),
             Self::Array(data) => data.token_literal(),
             Self::Index(data) => data.token_literal(),
+            Self::Hash(data) => data.token_literal(),
         }
     }
     fn print(&self) -> String {
@@ -196,6 +206,7 @@ impl Node for Expression {
             Self::StringExp(data) => data.print(),
             Self::Array(data) => data.print(),
             Self::Index(data) => data.print(),
+            Self::Hash(data) => data.print(),
         }
     }
 }
@@ -416,6 +427,22 @@ impl Node for Index {
 
     fn print(&self) -> String {
         format!("({}[{}])", self.operand.print(), self.index.print())
+    }
+}
+
+impl Node for Hash {
+    fn token_literal(&self) -> String {
+        self.token.literal.clone()
+    }
+    fn print(&self) -> String {
+        format!(
+            "{{{}}}",
+            self.h
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k.print(), v.print()))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 

@@ -1,9 +1,9 @@
-use std::fmt::Display;
+use std::{collections::BTreeMap, fmt::Display};
 
 pub mod expression;
 pub mod statement;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Statement {
     Let(statement::Let),
     Return(statement::Return),
@@ -11,7 +11,7 @@ pub enum Statement {
     Block(statement::Block),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
     Identifier(String), // actual identifier's name
     Prefix(expression::Prefix),
@@ -21,13 +21,14 @@ pub enum Expression {
     String(String),
     Array(Vec<Expression>),
     Index(expression::Index),
+    Hash(BTreeMap<Expression, Expression>),
     If(expression::If),
     Fn(expression::Function),
     Call(expression::Call),
     Empty, // just a `;', is needed e.g. for return ;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
@@ -43,13 +44,21 @@ impl Display for Expression {
             Expression::String(data) => write!(f, "{}", data),
             Expression::Array(data) => write!(
                 f,
-                "{}",
+                "[{}]",
                 data.iter()
                     .map(|el| format!("{}", el))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
             Expression::Index(data) => write!(f, "{}", data),
+            Expression::Hash(data) => write!(
+                f,
+                "{{{}}}",
+                data.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
             Expression::If(data) => write!(f, "{}", data),
             Expression::Fn(data) => write!(f, "{}", data),
             Expression::Call(data) => write!(f, "{}", data),

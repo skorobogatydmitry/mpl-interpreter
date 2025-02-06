@@ -116,6 +116,7 @@ impl Evaluator {
                     (operand, index) => Err(format!("cannot index {operand} with {index}")),
                 }
             }
+            Expression::Hash(_) => todo!(),
             Expression::Empty => Ok(object::NULL),
         }
     }
